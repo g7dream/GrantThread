@@ -51,6 +51,8 @@ After dependencies are installed, `scripts/start-local.ps1` starts the local API
 
 The resulting confirmed allocations are EUR **1,700 / 3,100 / 400**, totalling EUR **5,200** across five unique expenses. The shared workshop counts once in the organisation's unique activity total.
 
+Grantees can also open **Response estimates** to try a grant and submission date. The tool estimates the remaining wait for a first funder reply from clearly labelled fictional past review durations. It shows the calendar-day window, time already waited and sample counts. Changing the scenario does not submit a report or change the ledger. See [the calculation and limits](docs/RESPONSE_ESTIMATES.md).
+
 ## Verification
 
 ```powershell

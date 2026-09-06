@@ -16,10 +16,11 @@ Local P0 candidate implemented on **6 September 2026** from [the supplied plan](
 | D3.2 | Explicit sharing, snapshots and funder projection | Complete locally; cloud gate open | Only two selected originals shared. Other tenant/grant/private-source attempts denied in tests. |
 | D3.3 | Funder and clarification lifecycle | Complete locally | Browser question linked to source, grantee response and funder acknowledgement preserved in history. |
 | D3.4 | Demo identities, reset and failure states | Complete locally; judge accounts open | Server-authenticated local switching/reset available. Model outage leaves ledger usable. Cognito judge accounts need setup. |
-| D4.1 | Targeted gates and synthetic benchmark | Local complete; release gates open | 28 checks and 3 isolated service journeys passed. G1 and three deployed journeys remain unverified. Human timing not measured. |
+| D4.1 | Targeted gates and synthetic benchmark | Local complete; release gates open | 39 checks and 3 isolated service journeys passed. G1 and three deployed journeys remain unverified. Human timing not measured. |
 | D4.2 | Desktop/narrow-screen and keyboard usability | Complete locally | Desktop and 390x844 inspected; overflow fixed (page 375px <= viewport 390px), hidden nav excluded, Escape restores focus. Native screen reader not run. |
 | D4.3 | Setup, licence, architecture and submission drafts | Complete as drafts | README, diagram, permissions, AWS/cPanel guides, Devpost, three Builder posts and 4:30 video script prepared. No publications claimed. |
 | D4.4 | Release package and final demonstration | Package prepared; release open | cPanel ZIP and source candidate prepared. Real video, judge access and public GitHub push await external setup. |
+| F1 | Grantee funder-response estimator | Complete locally | Explicit fictional funder histories, scenario date, remaining calendar-day window and sample counts. 11 new tests; normal, sparse and longest-history browser scenarios passed. Desktop, 390px and keyboard checks passed; no record mutations. |
 
 ## Verified artifacts
 

@@ -12,6 +12,7 @@ from pathlib import PurePath
 from .domain import calculate, parse_csv, readiness, validate_allocations, validate_source
 from .errors import DomainError, require
 from .repository import get_repository
+from .response_estimates import SIMULATED_HISTORY, estimate_response_time
 from .storage import get_storage
 
 
@@ -70,6 +71,15 @@ class Service:
     def grants(self):
         data = self.data()
         return [self.grant(data, key) for key in data["grants"]]
+
+    def response_estimate(self, body):
+        data = self.data()
+        require(isinstance(body, dict), "An estimate request is required")
+        grant_id = body.get("grantId")
+        require(isinstance(grant_id, str), "Choose a grant")
+        grant = self.grant(data, grant_id)
+        estimate = estimate_response_time(SIMULATED_HISTORY.get(grant["funderOrgId"], ()), body.get("submittedDate"))
+        return {**estimate, "grantId": grant_id, "grantName": grant["name"], "funderName": grant["funderName"]}
 
     def grant_detail(self, grant_id):
         data = self.data()

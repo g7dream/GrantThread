@@ -21,7 +21,7 @@ The executed benchmark instead used three isolated SQLite service-layer journeys
 | Repeated fields and decisions | Unmeasured |
 | Exact expense and allocation totals | Matched the fixture in all three local service runs |
 | Two report formats and resolved clarification | Produced in all three local service runs |
-| Access/versions/containment cases | Covered by the passing 28-test local backend/worker suite |
+| Access/versions/containment cases | Covered by the passing 28-test P0 backend/worker baseline; current suite adds 11 separate calculator tests |
 | Three complete deployed journeys | Pending; the three recorded runs are local service execution only |
 
 The label is “scripted synthetic benchmark; user validation pending.” Separately, the local browser completed the import-to-clarification journey and the report download. A 390-pixel viewport check exposed horizontal overflow, which was fixed and remeasured; keyboard Escape restored focus to the mobile navigation trigger. An actual screen-reader session was not performed.

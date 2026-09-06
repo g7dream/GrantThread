@@ -5,12 +5,14 @@ GrantThread integrates the Strands Agents SDK with an Amazon Bedrock model provi
 | Evidence field | Current record |
 | --- | --- |
 | Model ID and region used | Not recorded; requires actual configured run |
-| Strands/runtime versions tested | Strands 1.54.0; Python 3.12; installed dependencies locked in `backend/requirements.txt`; 28 local backend/worker tests passed |
+| Strands/runtime versions tested | Strands 1.54.0; Python 3.12; installed dependencies locked in `backend/requirements.txt`; 39 local tests passed: 17 workflow gates, 11 worker tests and 11 response-estimate tests |
 | Genuine completed job ID and tool events | Pending evidence |
 | Model runtime, token usage and cost | Unmeasured; local service timings in `BENCHMARK_RESULTS.json` exclude inference |
 | User study | User validation pending |
 
-The model proposes evidence links and report work through scoped tools. Canonical allocations and publication require explicit authorised API actions. Exact money uses integer minor units. Shared factual narratives use confirmed structured facts and deterministic templates; optional model prose remains a proposal until an appropriate review flow accepts it.
+The model proposes evidence links and report work through seven scoped Strands tools. Canonical allocations and publication require explicit authorised API actions. Exact money uses integer minor units. Shared factual narratives use confirmed structured facts and deterministic templates; optional model prose remains a proposal until an appropriate review flow accepts it.
+
+The separate **Response estimates** calculator uses fixed simulated funder histories and deterministic calendar-day calculations. It is not an eighth agent tool, does not invoke a model and makes no database writes. Its estimated ranges describe a fictional scenario, not verified submission dates, forecasting accuracy, confidence intervals or funder commitments. See [RESPONSE_ESTIMATES.md](RESPONSE_ESTIMATES.md) for the calculation and limits.
 
 Source references identify document versions and pages. A valid reference does not establish that the document supports an interpretation. Uploaded documents are untrusted data, including text that looks like instructions to the agent.
 

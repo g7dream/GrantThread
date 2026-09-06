@@ -15,3 +15,13 @@ export type Clarification = { id: string; snapshotId: string; grantName: string;
 export type Snapshot = { id: string; reportId: string; grantId: string; grantName: string; recipientOrgId: string; recipientName: string; granteeName: string; version: number; publishedAt: string; report: Report; attachments: Attachment[]; clarifications: Clarification[] }
 export type Portfolio = { organisation: { id: string; name: string }; grants: Grant[]; decisions: Proposal[]; totals: { currency: string; awardMinor: number; allocatedMinor: number; expenseMinor: number; uniqueActivities: number }; requirements: Requirement[]; jobs: Job[] }
 export type GrantDetail = { grant: Grant; requirements: Requirement[]; expenses: Expense[]; activities: Activity[]; evidence: Evidence[]; reports: Report[] }
+export type ResponseEstimate = {
+  grantId: string; grantName: string; funderName: string; simulated: true
+  asOfDate: string; submittedDate: string; elapsedDays: number
+  sampleCount: number; comparableSampleCount: number; typicalTotalDays: number | null
+  historicalRangeDays: { low: number; high: number } | null
+  remainingDays: { low: number; typical: number; high: number } | null
+  expectedDates: { earliest: string; typical: string; latest: string } | null
+  status: 'estimated' | 'insufficient_history' | 'beyond_history'
+  historyDays: number[]; method: 'conditional-empirical-quartiles'; unit: 'calendar_days'
+}

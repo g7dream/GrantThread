@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Activity as ActivityIcon, ArrowRight, ArrowUpRight, Building2, CheckCheck, ChevronDown, CircleHelp, FileStack, Files, LayoutDashboard, LogOut, Menu, Network, RefreshCw, ShieldCheck, X } from 'lucide-react'
+import { Activity as ActivityIcon, ArrowRight, ArrowUpRight, Building2, CheckCheck, ChevronDown, CircleHelp, Clock3, FileStack, Files, LayoutDashboard, LogOut, Menu, Network, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { api, setToken, token } from './api'
 import { cloudConfigured, completeCloudSignIn, signInCloud, signOutCloud } from './auth'
 import { Badge, Loading, Modal, Notice } from './components'
@@ -7,6 +7,7 @@ import { PortfolioPage, GrantPage } from './Portfolio'
 import { EvidencePage } from './Evidence'
 import { DecisionsPage } from './Decisions'
 import { ReportsPage, SharedPage, ClarificationsPage } from './Reports'
+import { ResponseEstimatesPage } from './ResponseEstimates'
 import type { User } from './types'
 
 function Logo() { return <a href="#/" className="brand" aria-label="GrantThread home"><span className="brand-mark"><Network size={23} strokeWidth={1.8} /></span><span>Grant<span className="brand-light">Thread</span></span></a> }
@@ -50,7 +51,7 @@ export default function App() {
   function logout() { setToken(null); setUser(null); setIdentityOpen(false); if (mode !== 'local') signOutCloud() }
   const local = mode === 'local'
   const funder = user?.role === 'funder'
-  const nav = funder ? [{ href: '/', title: 'Funded portfolio', icon: LayoutDashboard }, { href: '/questions', title: 'Clarifications', icon: CircleHelp }] : [{ href: '/', title: 'Portfolio', icon: LayoutDashboard }, { href: '/evidence', title: 'Evidence inbox', icon: FileStack }, { href: '/decisions', title: 'Decisions', icon: CheckCheck }, { href: '/reports', title: 'Reports', icon: Files }, { href: '/questions', title: 'Clarifications', icon: CircleHelp }]
+  const nav = funder ? [{ href: '/', title: 'Funded portfolio', icon: LayoutDashboard }, { href: '/questions', title: 'Clarifications', icon: CircleHelp }] : [{ href: '/', title: 'Portfolio', icon: LayoutDashboard }, { href: '/evidence', title: 'Evidence inbox', icon: FileStack }, { href: '/decisions', title: 'Decisions', icon: CheckCheck }, { href: '/reports', title: 'Reports', icon: Files }, { href: '/questions', title: 'Clarifications', icon: CircleHelp }, { href: '/response-estimates', title: 'Response estimates', icon: Clock3 }]
   const props = { revision, refresh }
   function content() {
     if (path === '/questions') return <ClarificationsPage {...props} funder={!!funder} />
@@ -59,6 +60,7 @@ export default function App() {
     if (path === '/evidence') return <EvidencePage {...props} />
     if (path === '/decisions') return <DecisionsPage {...props} />
     if (path === '/reports') return <ReportsPage {...props} />
+    if (path === '/response-estimates') return <ResponseEstimatesPage revision={revision} />
     return <PortfolioPage {...props} user={user!} />
   }
   const identities = <div className="identity-options"><button disabled={busy} onClick={() => login('brightpath')}><span className="avatar">BP</span><span><strong>Bright Path Lab</strong><small>Grant administrator · three grants</small></span><ArrowRight size={18} /></button><button disabled={busy} onClick={() => login('harbour')}><span className="avatar lavender">HC</span><span><strong>Harbour Collective</strong><small>Grant administrator · one grant</small></span><ArrowRight size={18} /></button><button disabled={busy} onClick={() => login('northstar')}><span className="avatar gold">NF</span><span><strong>Northstar Foundation</strong><small>Funder · shared reports only</small></span><ArrowRight size={18} /></button></div>

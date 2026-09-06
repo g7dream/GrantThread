@@ -84,6 +84,7 @@ def dispatch(method, path, body, identity, repository=None, storage=None, raw=No
     if method == "PUT" and len(parts) == 2 and parts[0] == "uploads":
         return service.receive_upload(parts[1], raw or b"")
     if method == "POST":
+        if parts == ["response-estimates"]: return service.response_estimate(body)
         if parts == ["proposals", "batch-apply"]: return trigger(service, service.apply_evidence_batch(body))
         if parts == ["expenses", "import"]:
             result = service.import_expenses(body)

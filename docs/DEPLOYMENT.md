@@ -64,7 +64,7 @@ Generate the ZIP from the compiled public assets:
 .\.venv\Scripts\python.exe scripts/package_cpanel.py --base /grantthread/
 ```
 
-The script packages `frontend/dist` and generates the `.htaccess` SPA fallback **inside the ZIP**, together with deployment instructions, the original MIT licence and dependency notices. It does not require `.htaccess` to exist in `frontend/dist`. Output is `artifacts/GrantThread-cpanel.zip` with a sibling SHA-256 file. The 6 September local package is 147,423 bytes; its AWS configuration is missing, so it is an **unconfigured preview asset package**, not a working hosted release. Rebuild and repackage after supplying the actual API/Cognito settings. Do not upload this repository, `node_modules`, `.venv` or local `.data`.
+The script packages `frontend/dist` and generates the `.htaccess` SPA fallback **inside the ZIP**, together with deployment instructions, the original MIT licence and dependency notices. It does not require `.htaccess` to exist in `frontend/dist`. Output is `artifacts/GrantThread-cpanel.zip`; verify the current build against `artifacts/GrantThread-cpanel.sha256` rather than an old file-size value. Its AWS configuration is missing, so it is an **unconfigured preview asset package**, not a working hosted release. Rebuild and repackage after supplying the actual API/Cognito settings. Do not upload this repository, `node_modules`, `.venv` or local `.data`.
 
 ## cPanel upload and path casing
 
