@@ -1,0 +1,4 @@
+expense_id,description,amount,currency,date,grant_id,allocation_amount
+venue,Venue hire,1000.00,EUR,2026-08-12,digital-belonging,500.00
+venue,Venue hire,1100.00,EUR,2026-08-12,community-makers,500.00
+printing,Printing,600.00,EUR,2026-08-14,digital-belonging,600.00

@@ -1,0 +1,15 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - NOT A REAL INVOICE
+Fixture ID: invoice-facilitator-v1
+Supplier: Fictional Learning Studio
+Customer: Bright Path Lab (fictional)
+Expense ID: facilitator
+Description: Workshop facilitator
+Invoice date: 2026-08-18
+Currency: EUR
+Total: 1200.00
+
+Description of service: Preparation and delivery of the Community digital workshop.
+Activity ID: workshop-01.
+Recorded confirmed allocation: EUR 600.00 Digital Belonging and EUR 600.00 Community Makers.
+This is one original expense. The two grant allocations do not create two services or two invoices.
+This invoice is not payment proof.

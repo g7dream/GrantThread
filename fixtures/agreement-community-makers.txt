@@ -1,0 +1,17 @@
+SYNTHETIC DEMONSTRATION AGREEMENT - NOT A CONTRACT
+Fixture ID: agreement-community-makers-v1
+Grant ID: community-makers
+Grant: Community Makers
+Grantee: Bright Path Lab (fictional)
+Funder: Riverbend Trust (fictional)
+Award: EUR 15000.00
+Funding mode: Restricted actual-cost demonstration
+
+Reporting scenario:
+Use a table-oriented activity and expenditure report for Riverbend Trust.
+Include confirmed allocations for venue, workshop facilitation and maker kits, with selected source evidence.
+The Community digital workshop is a shared activity with Digital Belonging. Its organisation-wide attendance is not doubled.
+Show unresolved configured requirements explicitly rather than inventing values.
+
+This fixture does not set a deadline time, payment instruction, general eligibility rule or real legal obligation.
+Only requirements explicitly confirmed in the application's configuration are authoritative for its readiness checks.

@@ -1,0 +1,15 @@
+SYNTHETIC DEMONSTRATION AGREEMENT - NOT A CONTRACT
+Fixture ID: agreement-youth-skills-v1
+Grant ID: youth-skills
+Grant: Youth Skills
+Grantee: Bright Path Lab (fictional)
+Funder: Northstar Foundation (fictional)
+Award: EUR 10000.00
+Funding mode: Restricted actual-cost demonstration
+
+Reporting scenario:
+Record the Insurance expense and its supporting source. This minimal portfolio fixture has EUR 400.00 allocated.
+No participant or outcome total is provided. Do not infer one from an insurance expense.
+
+This fixture does not set a deadline time, payment instruction, general eligibility rule or real legal obligation.
+Only requirements explicitly confirmed in the application's configuration are authoritative for its readiness checks.

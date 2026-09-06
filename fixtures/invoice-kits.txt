@@ -1,0 +1,13 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - NOT A REAL INVOICE
+Fixture ID: invoice-kits-v1
+Supplier: Fictional Maker Supply
+Customer: Bright Path Lab (fictional)
+Expense ID: kits
+Description: Maker kits
+Invoice date: 2026-08-20
+Currency: EUR
+Total: 2000.00
+
+Description of goods: Reusable educational maker kits.
+Intended grant link: community-makers.
+This invoice is not payment proof and does not establish an attendance or outcome count.

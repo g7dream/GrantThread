@@ -1,0 +1,12 @@
+SYNTHETIC DEMONSTRATION ACTIVITY RECORD - NOT REAL ATTENDANCE
+Fixture ID: workshop-evidence-v1
+Activity ID: workshop-01
+Organisation: Bright Path Lab (fictional)
+Title: Community digital workshop
+Date: 2026-08-18
+Participants: 24 fictional participants
+Linked grants: digital-belonging, community-makers
+
+Activity summary: Participants practised basic digital tasks and collaborative making in one workshop.
+This is one activity with 24 participants, linked to two grants. It is not two workshops or 48 unique people.
+No participant identities, demographic breakdown, assessment scores or longer-term outcomes are provided.

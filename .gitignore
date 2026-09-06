@@ -1,0 +1,17 @@
+node_modules/
+.npm-cache/
+dist/
+.env
+.env.local
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.aws-sam/
+backend/.data/
+artifacts/*
+!artifacts/.gitkeep
+*.log
+*.tsbuildinfo
+*.sqlite*
+.DS_Store

@@ -1,0 +1,14 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - NOT A REAL INVOICE
+Fixture ID: invoice-printing-v1
+Supplier: Fictional Paper Lane
+Customer: Bright Path Lab (fictional)
+Expense ID: printing
+Description: Printing
+Invoice date: 2026-08-14
+Currency: EUR
+Total: 600.00
+
+Description of service: Workshop information sheets and accessible print packs.
+Intended grant link: digital-belonging.
+This invoice records an expense, not its payment. Payment date is not provided here.
+The initial synthetic evidence folder deliberately contains no payment proof for this expense.

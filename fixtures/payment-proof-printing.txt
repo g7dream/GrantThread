@@ -1,0 +1,15 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - NOT A BANK RECORD
+Fixture ID: payment-proof-printing-v1
+Organisation: Bright Path Lab (fictional)
+Expense ID: printing
+Related invoice: invoice-printing-v1
+Payee: Fictional Paper Lane
+Payment date: 2026-08-25
+Currency: EUR
+Amount paid: 600.00
+Status: Completed in this fictional scenario
+Synthetic transaction reference: DEMO-PRINT-600
+
+This fixture supports the fictional payment-proof requirement for the Printing expense under Digital Belonging.
+It contains no real bank account, payment instruction or personal information.
+It is deliberately withheld from the initial evidence set and uploaded during the missing-document scenario.

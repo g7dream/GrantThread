@@ -1,0 +1,13 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - NOT A REAL INVOICE
+Fixture ID: invoice-insurance-v1
+Supplier: Fictional Community Cover
+Customer: Bright Path Lab (fictional)
+Expense ID: insurance
+Description: Insurance
+Invoice date: 2026-08-22
+Currency: EUR
+Total: 400.00
+
+Description of service: Programme activity insurance fixture.
+Intended grant link: youth-skills.
+This is synthetic invoice evidence only, not a real insurance policy or proof of payment.

@@ -1,0 +1,14 @@
+SYNTHETIC DEMONSTRATION DOCUMENT - NOT A REAL INVOICE
+Fixture ID: invoice-venue-v1
+Supplier: Fictional Cedar Hall
+Customer: Bright Path Lab (fictional)
+Expense ID: venue
+Description: Venue hire
+Invoice date: 2026-08-12
+Currency: EUR
+Total: 1000.00
+
+Description of service: Hall hire for the Community digital workshop.
+The source records one expense of EUR 1000.00. It does not determine the grant split.
+A separate proposed allocation of EUR 700.00 plus EUR 500.00 exceeds this amount.
+An authorised reviewer must confirm an appropriate split. This invoice is not payment proof.

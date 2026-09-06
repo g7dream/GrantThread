@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "currency": "EUR",
+  "uniqueExpenseCount": 5,
+  "uniqueExpenseMinor": 520000,
+  "initialConfirmedAllocationMinor": 420000,
+  "venueProposal": {
+    "expenseMinor": 100000,
+    "allocationsMinor": {"digital-belonging": 70000, "community-makers": 50000},
+    "excessMinor": 20000
+  },
+  "venueCorrectionMinor": {"digital-belonging": 50000, "community-makers": 50000},
+  "finalGrantAllocationsMinor": {"digital-belonging": 170000, "community-makers": 310000, "youth-skills": 40000},
+  "finalTotalAllocationMinor": 520000,
+  "uniqueActivities": 1,
+  "uniqueParticipantsInWorkshop": 24,
+  "workshopLinkedGrants": ["digital-belonging", "community-makers"],
+  "initialMissingEvidence": {"expenseId": "printing", "kind": "payment_proof"},
+  "ambiguousImport": "Reject without partial commit because venue has conflicting original amounts"
+}

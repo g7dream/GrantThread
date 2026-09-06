@@ -1,0 +1,17 @@
+SYNTHETIC DEMONSTRATION AGREEMENT - NOT A CONTRACT
+Fixture ID: agreement-digital-belonging-v1
+Grant ID: digital-belonging
+Grant: Digital Belonging
+Grantee: Bright Path Lab (fictional)
+Funder: Northstar Foundation (fictional)
+Award: EUR 20000.00
+Funding mode: Restricted actual-cost demonstration
+
+Reporting scenario:
+Provide the recorded grant allocations, their source evidence and the supported activity record.
+For the Printing expense, invoice evidence and separate payment proof are required before the report is ready to share.
+One Community digital workshop may support Digital Belonging and Community Makers. Preserve its one activity ID.
+Use the Northstar narrative and financial summary report layout.
+
+This fixture does not set a deadline time, payment instruction, general eligibility rule or real legal obligation.
+Only requirements explicitly confirmed in the application's configuration are authoritative for its readiness checks.

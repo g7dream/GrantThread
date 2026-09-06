@@ -1,0 +1,12 @@
+SYNTHETIC DEMONSTRATION AGREEMENT - NOT A CONTRACT
+Fixture ID: agreement-volunteer-support-v1
+Grant ID: volunteer-support
+Grant: Volunteer Support
+Grantee: Harbour Collective (fictional)
+Funder: Northstar Foundation (fictional)
+Award: EUR 12000.00
+Funding mode: Restricted actual-cost demonstration
+
+This second-grantee fixture exists to verify that Bright Path Lab cannot read Harbour Collective's internal records.
+Northstar may read a deliberately shared Harbour report package, if one is published to it, but not the private underlying inbox.
+No expense, payment, attendance or outcome value is supplied by this document.

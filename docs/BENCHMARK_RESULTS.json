@@ -1,0 +1,60 @@
+{
+  "kind": "scripted synthetic local benchmark",
+  "userValidation": "pending",
+  "liveModel": "not configured; not measured",
+  "scope": "Seed, CSV preview/import, correction, evidence review, two reports/PDFs, snapshot and clarification. Service-layer execution; excludes browser, network and human review.",
+  "limitations": "Automated runtime is not a measure of administrator time savings. No manual baseline or participant timing is available.",
+  "runs": [
+    {
+      "iteration": 1,
+      "seconds": 0.1912,
+      "uniqueExpenses": 5,
+      "expenseMinor": 520000,
+      "allocatedMinor": 520000,
+      "byGrant": {
+        "digital-belonging": 170000,
+        "community-makers": 310000,
+        "youth-skills": 40000
+      },
+      "reportFormats": 2,
+      "resolvedClarifications": 1,
+      "humanReviewTimeSeconds": null,
+      "manualBaselineSeconds": null,
+      "agentStatus": "unavailable"
+    },
+    {
+      "iteration": 2,
+      "seconds": 0.1279,
+      "uniqueExpenses": 5,
+      "expenseMinor": 520000,
+      "allocatedMinor": 520000,
+      "byGrant": {
+        "digital-belonging": 170000,
+        "community-makers": 310000,
+        "youth-skills": 40000
+      },
+      "reportFormats": 2,
+      "resolvedClarifications": 1,
+      "humanReviewTimeSeconds": null,
+      "manualBaselineSeconds": null,
+      "agentStatus": "unavailable"
+    },
+    {
+      "iteration": 3,
+      "seconds": 0.1315,
+      "uniqueExpenses": 5,
+      "expenseMinor": 520000,
+      "allocatedMinor": 520000,
+      "byGrant": {
+        "digital-belonging": 170000,
+        "community-makers": 310000,
+        "youth-skills": 40000
+      },
+      "reportFormats": 2,
+      "resolvedClarifications": 1,
+      "humanReviewTimeSeconds": null,
+      "manualBaselineSeconds": null,
+      "agentStatus": "unavailable"
+    }
+  ]
+}
