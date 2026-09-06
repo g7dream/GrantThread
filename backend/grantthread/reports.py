@@ -5,11 +5,11 @@ from xml.sax.saxutils import escape
 
 
 def money(value, currency="EUR"):
-    return f"{currency} {value // 100:,}.{value % 100:02d}"
+    return f"{currency} {'-' if value < 0 else ''}{abs(value) // 100:,}.{abs(value) % 100:02d}"
 
 
 def manifest(report, attachments=None):
-    return {"synthetic": True, "reportId": report["id"], "grantId": report["grantId"], "grantName": report["grantName"],
+    return {"synthetic": report.get('synthetic', True), "reportId": report["id"], "grantId": report["grantId"], "grantName": report["grantName"],
             "reportVersion": report["version"], "template": report["template"], "templateVersion": report.get("templateVersion", 1),
             "currency": report["currency"], "allocatedMinor": report["allocatedMinor"],
             "sources": report.get("sourceRefs", []), "attachments": attachments if attachments is not None else report.get("availableAttachments", []),
@@ -32,7 +32,7 @@ def pdf_bytes(report):
     styles.add(ParagraphStyle(name="Meta", fontName="Helvetica", fontSize=8, leading=12, textColor=colors.HexColor("#637680"), spaceAfter=6))
     styles.add(ParagraphStyle(name="Section", fontName="Helvetica-Bold", fontSize=13, leading=18, textColor=colors.HexColor("#0A7C78"), spaceBefore=14, spaceAfter=7))
     paragraph = lambda value, style="Copy": Paragraph(escape(str(value)), styles[style])
-    story = [paragraph("GrantThread", "Brand"), paragraph("SYNTHETIC DEMONSTRATION DATA • FICTIONAL ORGANISATIONS", "Meta"),
+    story = [paragraph("GrantThread", "Brand"), paragraph("SYNTHETIC DEMONSTRATION DATA • FICTIONAL ORGANISATIONS" if report.get('synthetic', True) else 'FINANCIAL REPORT', "Meta"),
              paragraph(report["grantName"], "Heading1"), paragraph(f"{report['granteeName']}  |  {report['funderName']}", "Copy"),
              paragraph(f"Report version {report['version']}  •  Template {report['template']} v{report.get('templateVersion', 1)}", "Meta")]
     if report.get("status") == "incomplete":
@@ -42,7 +42,7 @@ def pdf_bytes(report):
         story += [paragraph("EARLIER DRAFT — source records changed", "Section"),
                   paragraph("This export preserves an earlier report version. Prepare a new version before sharing.")]
     story += [paragraph(report["narrative"]), paragraph("Confirmed figures", "Section")]
-    summary = [["Awarded budget", money(report["awardMinor"])], ["Allocated expenses", money(report["allocatedMinor"])], ["Confirmed receipts", "Not provided"]]
+    summary = [["Awarded budget", money(report["awardMinor"], report['currency'])], ["Allocated expenses", money(report["allocatedMinor"], report['currency'])], ["Confirmed receipts", "Not provided"]]
     table = Table(summary, colWidths=[105 * mm, 65 * mm])
     table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F6F7F4")), ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
                                ("FONTSIZE", (0, 0), (-1, -1), 10), ("PADDING", (0, 0), (-1, -1), 10), ("ALIGN", (1, 0), (1, -1), "RIGHT")]))
@@ -60,7 +60,7 @@ def pdf_bytes(report):
     def expenses():
         parts = [paragraph("Expense allocations", "Section")]
         rows = [[paragraph("Expense"), paragraph("Date"), paragraph("Allocated")]]
-        rows += [[paragraph(e["description"]), paragraph(e["date"]), paragraph(money(e["amountMinor"]))] for e in report["expenses"]]
+        rows += [[paragraph(e["description"]), paragraph(e["date"]), paragraph(money(e["amountMinor"], report['currency']))] for e in report["expenses"]]
         if not report["expenses"]:
             parts.append(paragraph("No confirmed expense allocations provided."))
         else:
@@ -88,7 +88,7 @@ def pdf_bytes(report):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#637680"))
-        canvas.drawString(18 * mm, 11 * mm, "GrantThread | Synthetic demonstration data")
+        canvas.drawString(18 * mm, 11 * mm, "GrantThread | Synthetic demonstration data" if report.get('synthetic', True) else 'GrantThread | Financial report')
         canvas.drawRightString(192 * mm, 11 * mm, str(doc.page))
         canvas.restoreState()
     document.build(story, onFirstPage=footer, onLaterPages=footer)

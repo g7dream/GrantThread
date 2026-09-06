@@ -4,7 +4,7 @@ Status on **6 September 2026: local workflow verified; deployed AWS/model gates 
 
 ## Executed checks
 
-- **39 unit tests passed**: 17 workflow gates in `backend/tests/test_gates.py`, 11 worker tests in `backend/tests/test_worker.py` and 11 response-estimate tests in `backend/tests/test_response_estimates.py`. They cover tenant boundaries, scoped downloads, exact allocations, stale/concurrent and atomic batch approvals, replacement lineage, malformed uploads, immutable snapshots, clarification roles, worker leases, duplicate delivery, model-failure containment and the deterministic response calculator.
+- **116 tests passed**: 17 original workflow gates, 11 reconciliation worker tests, 11 response-estimate tests, 22 financial integration tests, 30 financial file tests, 13 bank-extraction tests and 12 bank-job lifecycle tests. They cover tenant boundaries, exact money/FX, atomic/stale changes, source parsing, duplicate payments, template preservation and bounded offline model dispatch.
 - Python compilation, `pip check` and CloudFormation `cfn-lint` passed. These checks do not deploy AWS resources.
 - The final TypeScript/Vite production build passed with the `/grantthread/` base path.
 - Both report formats were rendered and visually inspected. Local sample PDFs, manifests and page images are in `artifacts/`.
@@ -29,6 +29,18 @@ The added [Response estimates](RESPONSE_ESTIMATES.md) calculator uses fixed simu
 Its 11 tests passed within the 39-test suite. They cover numerical examples, conditioning on elapsed days, sparse/missing history, longest-history boundaries, malformed/future dates, leap-day arithmetic, authorised grant/funder scope and unchanged stored records. The frontend build passed after this addition.
 
 Verified browser observations: Northstar's default scenario with seven days already waited shows **5–15 more days, median 11**; changing the grant or editing the date with native keyboard input clears the previous result; Riverbend's default scenario shows **11–23 more days, median 18**. At 25 days waited, two comparable samples produce no countdown. At 35 days, the tool explains that the longest simulated review has been reached and shows no remaining response date. Tab and Enter access/expand the sample history. Desktop and 390 × 844 viewport captures were inspected, with measured page width 375px within the 390px viewport. Native screen-reader operation remains untested. These simulated ranges are not confidence intervals, response guarantees or measured forecasting accuracy.
+
+## Financial workspace verification
+
+The browser imported a fictional XLSX ledger into drafts, recorded an automatic funding receipt, converted RON 100 to CAD 25 without entering a per-expense rate, and confirmed it. A linked correction of RON -20 retained the original rate and changed the report to CAD 20. A CAD 50 category budget produced CAD 30 variance. Receipt creation invalidated older affected draft versions; confirmed conversions remained frozen.
+
+Both browser download actions produced files in Downloads. The in-app download event observer timed out once, but the downloaded file existed; independent workbook inspection and authenticated HTTP downloads verified the result. The populated template contained actual/total CAD 20, zeroed unused mapped categories, the chosen reciprocal rate of 4, and the selected period dates. Unmapped cells and a dependent formula remained unchanged. Generated report, ledger and receipt sheets were rendered for visual inspection; text wrapping and column widths were corrected. Exports retain the conversion basis and funding receipt IDs.
+
+The supplied private ledger and report were checked in memory only. The parser found 66 expense rows with RON amounts and preserved high-precision rates, excluded balance/summary/audit comparison rows, and explicitly flagged the separate income table. The report template retained all 16 sheets, 10 array formulas, unmapped values and styles. The sample bank PDF parsed as one credit with balanced totals. No private source files or extracted financial records were added to the repository or public fixtures.
+
+At 1280px, the financial page measured 1265px wide; at 390px, it measured 375px. Keyboard Home selected the first financial tab. Import, receipt, confirmation, correction, budget and mapping controls were exercised through the browser. Native screen-reader use remains untested. Parser/service tests cover bank statement upload, overlapping statements, payment matching and unavailable AI; no genuine Bedrock bank extraction was performed.
+
+All backend tests, Python compilation, dependency consistency and the production frontend build passed. See [FINANCIALS.md](FINANCIALS.md) for supported formats, receipt selection and remaining limits.
 
 ## Release gates and their limits
 

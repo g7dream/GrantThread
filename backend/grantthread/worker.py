@@ -306,6 +306,10 @@ def run_job(organisation_id: str, job_id: str):
     from .service import Service
 
     repository = get_repository()
+    queued = repository.read(organisation_id).get("jobs", {}).get(job_id, {})
+    if queued.get("kind") == "bank_statement":
+        from .bank_agent import run_bank_job
+        return run_bank_job(organisation_id, job_id, repository=repository)
     claimed = _claim(repository, organisation_id, job_id)
     if claimed == "busy":
         return "busy"

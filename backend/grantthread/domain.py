@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import date
 
 from .errors import DomainError, require
+from .finance_math import convert_minor, normalize_rate
 
 
 def minor_units(text):
@@ -30,8 +31,17 @@ def validate_allocations(data, expense, allocations):
         require(grant_id in data["grants"], "Allocation grant is outside your workspace", "forbidden", 403)
         require(grant_id not in seen, "Each grant may appear only once in an allocation split")
         seen.add(grant_id)
-        require(data["grants"][grant_id]["currency"] == expense["currency"],
-                "Mixed-currency allocations are not supported", "currency_mismatch")
+        target = data['grants'][grant_id]['currency']
+        if target != expense['currency']:
+            snapshot = allocation.get('conversion', {})
+            require(isinstance(snapshot, dict) and snapshot.get('sourceCurrency') == expense['currency']
+                    and snapshot.get('reportCurrency') == target and snapshot.get('rate'),
+                    'Cross-currency allocations need a reviewed conversion snapshot', 'currency_mismatch')
+            rate = normalize_rate(snapshot['rate'])
+            require(allocation.get('reportAmountMinor') == convert_minor(allocation.get('amountMinor', 0), rate),
+                    'Converted allocation does not match its recorded rate', 'currency_mismatch')
+        elif 'reportAmountMinor' in allocation:
+            require(allocation['reportAmountMinor'] == allocation['amountMinor'], 'Same-currency amounts must match', 'currency_mismatch')
         total += integer_amount(allocation.get("amountMinor"))
     require(total <= expense["amountMinor"],
             "Allocations exceed the recorded allocatable amount", "over_allocation", 422)
@@ -41,7 +51,7 @@ def validate_allocations(data, expense, allocations):
 def calculate(data, grant_id=None):
     currencies = {e["currency"] for e in data["expenses"].values()}
     currencies.update(g["currency"] for g in data["grants"].values())
-    require(len(currencies) <= 1, "Mixed-currency aggregation is not supported", "currency_mismatch")
+    buckets = {code: {'currency': code, 'expenseMinor': 0, 'allocatedMinor': 0, 'awardMinor': 0} for code in currencies}
     by_grant = {key: 0 for key in data["grants"]}
     by_expense = {}
     for expense in data["expenses"].values():
@@ -49,12 +59,27 @@ def calculate(data, grant_id=None):
         by_expense[expense["id"]] = {"amountMinor": expense["amountMinor"], "allocatedMinor": amount,
                                     "unallocatedMinor": expense["amountMinor"] - amount}
         for allocation in expense["allocations"]:
-            by_grant[allocation["grantId"]] += allocation["amountMinor"]
+            by_grant[allocation["grantId"]] += allocation.get('reportAmountMinor', allocation["amountMinor"])
+        buckets[expense['currency']]['expenseMinor'] += expense['amountMinor']
+    for entry in data.get('financeEntries', {}).values():
+        if entry['status'] == 'confirmed' and entry['kind'] == 'adjustment':
+            by_grant[entry['grantId']] += entry['reportAmountMinor']
+            buckets[entry['currency']]['expenseMinor'] += entry['sourceAmountMinor']
+    for key, grant in data['grants'].items():
+        buckets[grant['currency']]['awardMinor'] += grant['awardMinor']
+        buckets[grant['currency']]['allocatedMinor'] += by_grant[key]
     if grant_id:
         require(grant_id in data["grants"], "Grant not found", "not_found", 404)
-    return {"currency": next(iter(currencies), "EUR"), "byGrant": by_grant, "byExpense": by_expense,
-            "expenseMinor": sum(e["amountMinor"] for e in data["expenses"].values()),
-            "allocatedMinor": by_grant[grant_id] if grant_id else sum(by_grant.values())}
+    code = data['grants'][grant_id]['currency'] if grant_id else next(iter(currencies), 'EUR') if len(currencies) <= 1 else None
+    return {"currency": code, "byCurrency": sorted(buckets.values(), key=lambda b: b['currency']), "byGrant": by_grant, "byExpense": by_expense,
+            "expenseMinor": buckets.get(code, {}).get('expenseMinor', 0),
+            "allocatedMinor": by_grant[grant_id] if grant_id else buckets.get(code, {}).get('allocatedMinor', 0)}
+
+
+def unresolved_financial_imports(data, grant_id):
+    return [item for item in data.get('financeImports', {}).values() if item['grantId'] == grant_id and item['kind'] != 'template'
+            and (item['status'] != 'imported' or (not item.get('reviewedAt') and (item.get('extractionComplete') is False
+                 or any(check.get('matches') is False for check in item.get('balanceChecks', [])))))]
 
 
 def readiness(data, grant_id):
@@ -73,6 +98,10 @@ def readiness(data, grant_id):
             missing.append(requirement["title"])
     if not grant.get("rulesConfirmed"):
         missing.append("Grant requirements need confirmation")
+    if any(e['grantId'] == grant_id and e['status'] == 'draft' for e in data.get('financeEntries', {}).values()):
+        missing.append('Review draft financial entries')
+    if unresolved_financial_imports(data, grant_id):
+        missing.append('Complete financial source review')
     for proposal in data["proposals"].values():
         if proposal["status"] == "pending" and proposal["kind"] == "allocation" and any(
                 a["grantId"] == grant_id for a in proposal["after"]["allocations"]):
@@ -116,6 +145,7 @@ def parse_csv(text, data):
             require(expense["amountMinor"] > 0, "Expense amount must be positive")
             previous = groups.get(expense_id) or data["expenses"].get(expense_id)
             if previous:
+                require(not previous.get('financeEntryId'), 'Use Financials to review this imported expense or create a linked adjustment')
                 require(all(previous[k] == expense[k] for k in expense),
                         "Expense ID has conflicting original facts; resolve this ambiguous row before import")
             grant_id = row["grant_id"]

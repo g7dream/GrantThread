@@ -63,7 +63,7 @@ class Service:
         totals = calculate(data)
         return {"organisation": data["organisation"], "grants": [self.grant(data, key) for key in data["grants"]],
                 "decisions": [p for p in data["proposals"].values() if p["status"] == "pending"],
-                "totals": {"currency": totals["currency"], "awardMinor": sum(g["awardMinor"] for g in data["grants"].values()),
+                "totals": {"currency": totals["currency"], "byCurrency": totals['byCurrency'], "awardMinor": sum(g["awardMinor"] for g in data["grants"].values()) if totals['currency'] else 0,
                            "allocatedMinor": totals["allocatedMinor"], "expenseMinor": totals["expenseMinor"],
                            "uniqueActivities": len({a["id"] for a in data["activities"] if a.get("confirmed")})},
                 "requirements": self.list_requirements(), "jobs": list(data["jobs"].values())[-10:]}
@@ -357,6 +357,7 @@ class Service:
                 require(proposal["inputVersion"] == data["factVersion"], "Evidence or facts changed. Recompute this proposal before applying.", "stale", 409)
                 if proposal["kind"] == "allocation":
                     expense = data["expenses"][proposal["expenseId"]]
+                    require(not expense.get('financeEntryId'), 'Use Financials to create a linked adjustment for this confirmed expense')
                     allocations = body.get("allocations", proposal["after"]["allocations"])
                     validate_allocations(data, expense, allocations)
                     expense["allocations"] = copy.deepcopy(allocations)
@@ -487,14 +488,17 @@ class Service:
                 return existing
             version = 1 + max((r["version"] for r in data["reports"].values() if r["grantId"] == grant_id), default=0)
             report_id = new_id("report")
-            expenses = [{"id": e["id"], "description": e["description"], "amountMinor": a["amountMinor"], "date": e["date"], "paidStatus": e.get("paidStatus", "not_provided")}
+            expenses = [{"id": e["id"], "description": e["description"], "amountMinor": a.get('reportAmountMinor', a["amountMinor"]), "date": e["date"], "paidStatus": e.get("paidStatus", "not_provided")}
                         for e in data["expenses"].values() for a in e["allocations"] if a["grantId"] == grant_id]
+            expenses += [{'id': e['id'], 'description': 'Adjustment: ' + e['description'], 'amountMinor': e['reportAmountMinor'], 'date': e['date'], 'paidStatus': 'adjustment'}
+                         for e in data.get('financeEntries', {}).values() if e['grantId'] == grant_id and e['status'] == 'confirmed' and e['kind'] == 'adjustment']
             activities = [{k: a[k] for k in ("id", "title", "date", "participants")}
                           for a in data["activities"] if grant_id in a["grantIds"] and a.get("confirmed")]
             evidence = [e for e in data["evidence"].values() if grant_id in e["grantIds"] and e["status"] == "confirmed"]
             refs = [{"evidenceId": e["id"], "version": e["version"], "page": 1, "excerpt": e["excerpt"]} for e in evidence]
             allocated = grant["allocatedMinor"]
-            money = f"EUR {allocated // 100:,}.{allocated % 100:02d}"
+            from .reports import money as format_money
+            money = format_money(allocated, grant['currency'])
             if grant["template"] == "northstar-outcomes":
                 activity_word = "activity" if len(activities) == 1 else "activities"
                 narrative = f"{grant['name']} records {len(activities)} confirmed linked {activity_word} and {money} in allocated expenses. Participant counts are activity-level records; repeat participation is not deduplicated across activities."
@@ -506,7 +510,8 @@ class Service:
                       "readiness": grant["readiness"], "currency": grant["currency"], "awardMinor": grant["awardMinor"],
                       "allocatedMinor": allocated, "expenses": expenses, "activities": activities, "narrative": narrative,
                       "sourceRefs": refs, "availableAttachments": [{k: e[k] for k in ("id", "name", "version", "kind")} for e in evidence],
-                      "synthetic": True, "factsOrigin": "confirmed records and deterministic calculations", "confirmedReceiptsMinor": None}
+                      "synthetic": not any(e['grantId'] == grant_id for e in data.get('financeEntries', {}).values()) and grant.get('synthetic', True),
+                      "factsOrigin": "confirmed records and deterministic calculations", "confirmedReceiptsMinor": None}
             data["reports"][report_id] = report
             self.audit(data, "report_prepared", report_id)
             return report

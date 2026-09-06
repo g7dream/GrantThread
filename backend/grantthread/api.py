@@ -53,6 +53,47 @@ def dispatch(method, path, body, identity, repository=None, storage=None, raw=No
     parts = [part for part in path.strip("/").split("/") if part]
     if parts and parts[0] == "api":
         parts = parts[1:]
+    if parts and parts[0] == 'financials':
+        from .finance_service import FinancialService
+        finance = FinancialService(identity, repository, storage)
+        route = parts[1:]
+        if method == 'GET':
+            if not route: return finance.overview()
+            if len(route) == 3 and route[0] == 'imports' and route[2] == 'source': return source_download(finance.source_bytes(route[1]))
+            if len(route) == 2 and route[0] == 'report': return finance.financial_report(route[1])
+            if len(route) == 3 and route[0] == 'report' and route[2] in {'xlsx', 'template-xlsx'}:
+                return Binary(finance.export_report(route[1], template=route[2] == 'template-xlsx'),
+                              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f'{route[1]}-financial-report.xlsx')
+            if len(route) == 4 and route[0] == 'report' and route[2] == 'template-xlsx':
+                return Binary(finance.export_report(route[1], template=True, template_id=route[3]),
+                              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f'{route[1]}-funder-template.xlsx')
+        if method == 'POST':
+            if route == ['grants']: return finance.create_grant(body)
+            if route == ['receipts']: return finance.add_receipt(body)
+            if route == ['entries']: return finance.create_entry(body)
+            if route == ['entries', 'batch-confirm']: return finance.confirm_entries(body)
+            if route == ['imports']:
+                result = finance.upload_import(body)
+                if result['status'] == 'needs_ai' and not result.get('alreadyImported'):
+                    try:
+                        result['job'] = dispatch_job(finance, finance.create_bank_job(result['id']))
+                        result['message'] = result['job']['message']
+                    except DomainError as exc:
+                        result['jobWarning'] = exc.message
+                return result
+            if len(route) == 2 and route[0] == 'report': return finance.save_report_settings(route[1], body)
+            if len(route) == 3 and route[0] == 'entries':
+                if route[2] == 'update': return finance.update_entry(route[1], body)
+                if route[2] == 'reject': return finance.reject_entry(route[1], body)
+                if route[2] == 'adjust': return finance.adjust_entry(route[1], body)
+                if route[2] == 'confirm': return finance.confirm_entries({'entries': [{'id': route[1], **body}]})['entries'][0]
+            if len(route) == 3 and route[0] == 'imports':
+                if route[2] == 'preview': return finance.preview_import(route[1], body)
+                if route[2] == 'commit': return finance.commit_import(route[1], body)
+                if route[2] == 'map-template': return finance.map_template(route[1], body)
+                if route[2] == 'review': return finance.review_import(route[1], body)
+                if route[2] == 'analyse': return dispatch_job(finance, finance.create_bank_job(route[1]))
+        raise DomainError('Financial endpoint not found', 'not_found', 404)
     if parts == ["session"] and method == "GET":
         return {"user": identity, "mode": os.getenv("GRANTTHREAD_MODE", "local")}
     if method == "GET":

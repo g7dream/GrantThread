@@ -2,13 +2,13 @@
 
 **Many grants. One clear thread.** A shared operations workspace for multi-grant administrators and the funders reviewing their deliberately shared reports.
 
-GrantThread records expenses once, keeps proposed allocations separate from confirmed money, connects versioned evidence, prepares two report formats, and preserves a question-and-response history around immutable shared packages. All bundled organisations, documents and outcomes are **synthetic demonstration data**.
+GrantThread records expenses once, keeps proposed allocations separate from confirmed money, connects versioned evidence, prepares reports, and preserves a question-and-response history around immutable shared packages. Its Financials workspace adds XLSX ledger imports, text-based bank PDF review, funding receipts, exact currency conversion and mapped report-template exports. All bundled organisations, documents and outcomes are **synthetic demonstration data**.
 
 ## Current release status
 
 The local P0 workflow is implemented and has been exercised from import through funder acknowledgement. It includes a React/TypeScript interface, persistent Python API, exact financial calculations, source review, PDF/manifest exports, server-issued local demo sessions and scoped funder views. The repository also includes a real Strands/Bedrock worker and AWS SAM infrastructure.
 
-**AWS/Cognito/SQS deployment and a genuine Bedrock run are not verified.** The interface reports the missing model connection as unavailable; it does not substitute simulated agent output. Eleven worker checks use explicitly labelled offline provider fixtures with the real Strands SDK. Public hosting, repository publication and the final demonstration video await account access and deployed verification.
+**AWS/Cognito/SQS deployment and a genuine Bedrock run are not verified.** The interface reports the missing model connection as unavailable; it does not substitute simulated agent output. Worker checks use explicitly labelled offline provider fixtures with the real Strands SDK. The cPanel package remains a static preview until its authenticated backend is configured and deployed verification is recorded.
 
 See [task progress](PROGRESS.md), [evaluation evidence](docs/EVALUATION.md) and [architecture](docs/ARCHITECTURE.md).
 
@@ -35,7 +35,7 @@ Start the interface in another terminal:
 npm.cmd --prefix frontend run dev
 ```
 
-Open [the local application](http://127.0.0.1:5173/). Choose Bright Path Lab, Harbour Collective or Northstar Foundation. Local identities establish opaque server sessions; a client-side role flag is never permission. The API binds to loopback and rejects unrelated hosts/origins. Local demo login and reset are absent from the cloud API.
+Open [the local application](http://127.0.0.1:5173/). Choose Bright Path Lab, Harbour Collective or Northstar Foundation. Anyone with access to this local demo can select any demo account; use fictional data only. Local identities establish opaque server sessions, and a client-side role flag is never permission. The API binds to loopback and rejects unrelated hosts/origins. Local demo login and reset are absent from the cloud API.
 
 After dependencies are installed, `scripts/start-local.ps1` starts the local API and interface together. The `.env.example` file documents configuration keys; export backend variables in the terminal. Vite reads `frontend/.env.local`. Full instructions are in [local setup](docs/SETUP.md).
 
@@ -52,6 +52,14 @@ After dependencies are installed, `scripts/start-local.ps1` starts the local API
 The resulting confirmed allocations are EUR **1,700 / 3,100 / 400**, totalling EUR **5,200** across five unique expenses. The shared workshop counts once in the organisation's unique activity total.
 
 Grantees can also open **Response estimates** to try a grant and submission date. The tool estimates the remaining wait for a first funder reply from clearly labelled fictional past review durations. It shows the calendar-day window, time already waited and sample counts. Changing the scenario does not submit a report or change the ledger. See [the calculation and limits](docs/RESPONSE_ESTIMATES.md).
+
+## Financials workflow
+
+Choose a grant and its reporting currency, record funding receipts and import an XLSX ledger or text-based bank PDF. Review the source preview, create editable drafts, classify credits, correct categories and conversion details, then explicitly confirm entries. A matched bank debit marks an existing expense as paid without recording it twice. Later corrections are linked adjustments that retain the original confirmed amount and conversion history.
+
+Supported currencies are EUR, RON, CAD, USD, GBP, CHF, AUD and NZD, all with two decimal places. Receipt mode can automatically choose the latest eligible receipt marked Automatic or use a specifically selected receipt. Receipt rates, weighted receipt rates and manually entered rates use decimal calculations and freeze on confirmation. Users choose the conversion method required by their funder; there is no market-rate feed, FIFO receipt consumption or financial spending-cap enforcement.
+
+Choose the reporting period and category budgets, then export a financial workbook or populate explicitly mapped cells in a funder's XLSX template. Unrecognised bank layouts require an actual configured Bedrock model; no transactions are invented when it is unavailable. See [Financials: workflow, calculations and limits](docs/FINANCIALS.md).
 
 ## Verification
 
@@ -83,7 +91,7 @@ The ZIP is written to `artifacts/GrantThread-cpanel.zip` and contains compiled p
 
 | Directory | Purpose |
 | --- | --- |
-| `frontend/` | Six connected surfaces, local font, authenticated API client and responsive styling |
+| `frontend/` | Connected evidence, financial, reporting and funder surfaces, local font and authenticated API client |
 | `backend/grantthread/` | Domain, service, persistence, local/Lambda transport, private storage, reports and bounded Strands worker |
 | `backend/tests/` | Focused acceptance and worker checks |
 | `infra/` | SAM template, operator seed/membership script and operation/teardown instructions |
@@ -94,8 +102,10 @@ The ZIP is written to `artifacts/GrantThread-cpanel.zip` and contains compiled p
 
 ## Limits and disclosure
 
-This is a bounded synthetic demonstration, not production security or compliance certification. The organisation aggregate has a 340 KB application ceiling; a real large ledger needs further partitioning. Imports accept EUR CSVs up to 500 rows, and UTF-8 TXT/text PDFs up to 5 MB and 20 pages (120,000 extracted characters). OCR and broad agreement extraction are deferred. Private original downloads use authorised, expiring S3 links in AWS to avoid Lambda's binary-response ceiling.
+This is a bounded demonstration, not production security or compliance certification. The organisation aggregate has a 340 KB application ceiling; a large ledger needs further partitioning. The original expense-allocation import accepts EUR CSVs up to 500 rows; evidence uploads accept UTF-8 TXT/text PDFs up to 5 MB and 20 pages (120,000 extracted characters). Financial XLSX/PDF uploads have a separate 2 MB limit, with up to 500 parsed transactions and 30 workbook sheets; bank AI output is capped at 60 rows per run. Full limits are in [Financials](docs/FINANCIALS.md). OCR and broad agreement extraction are deferred. Private original downloads use authorised, expiring S3 links in AWS to avoid Lambda's binary-response ceiling.
+
+Use only fictional records in a public demonstration or local demo account. Do not upload sensitive financial files to a public demo deployment. Original uploads belong in private application storage, outside public fixtures, repository history and frontend packages.
 
 Human review does not make all interpretations correct. AI proposals cannot directly change money, requirements, permissions or disclosures. Shared narrative is deterministic; source text and model prose are not automatically adopted as factual narrative. Read [model disclosure](docs/MODEL_DISCLOSURE.md) and [permission boundaries](docs/PERMISSIONS.md).
 
-Original project code is [MIT licensed](LICENSE). See [third-party notices](docs/THIRD_PARTY_NOTICES.md). Submission materials are drafts under `docs/submission/`; no posts, video, entry or repository publication are claimed complete.
+Original project code is [MIT licensed](LICENSE). See [third-party notices](docs/THIRD_PARTY_NOTICES.md). Submission materials are drafts under `docs/submission/`; publication and deployment evidence belongs in the release records.
