@@ -102,7 +102,10 @@ class Service:
         grant_id = body.get("grantId")
         require(isinstance(grant_id, str), "Choose a grant")
         grant = self.grant(data, grant_id)
-        estimate = estimate_response_time(SIMULATED_HISTORY.get(grant["funderOrgId"], ()), body.get("submittedDate"))
+        history_key = grant["funderOrgId"]
+        if self.identity.get("publicDemo") is True:
+            history_key = grant.get("demoResponseHistoryKey", history_key)
+        estimate = estimate_response_time(SIMULATED_HISTORY.get(history_key, ()), body.get("submittedDate"))
         return {**estimate, "grantId": grant_id, "grantName": grant["name"], "funderName": grant["funderName"]}
 
     def grant_detail(self, grant_id):

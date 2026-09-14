@@ -7,7 +7,13 @@ import ts from 'typescript'
 // default /api value so the Node tests exercise the browser request lifecycle.
 const source = await readFile(new URL('../src/api.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace('import.meta.env.VITE_API_URL', 'undefined')
-const { api, download } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
+const { api, download, uploadEvidence, demoRole, setDemoRole, setDemoEnabled, setToken } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
+
+function storedSession() {
+  const values = new Map()
+  globalThis.sessionStorage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) }
+  return values
+}
 
 function browser(t, fetcher, delayFor = delay => delay === 20000 ? 100 : 1) {
   const previousWindow = globalThis.window
@@ -198,11 +204,13 @@ test('signed source uses a separate credentialless GET within the API read deadl
     calls.push({ url, options })
     return calls.length === 1 ? Response.json(sourceDescriptor(signedSource)) : new Response('fictional PDF bytes')
   })
-  globalThis.sessionStorage.getItem = () => 'fictional-session-token'
+  storedSession()
+  setToken('fictional-session-token'); setDemoEnabled(true); setDemoRole('funder')
   const saved = downloadDom(t)
   await download('/evidence/fixture/download', 'old-fallback-name')
   assert.equal(calls[0].url, '/api/evidence/fixture/download')
   assert.equal(calls[0].options.headers.Authorization, 'Bearer fictional-session-token')
+  assert.equal(calls[0].options.headers['x-grantthread-demo-role'], 'funder')
   assert.equal(calls[0].options.redirect, 'error')
   assert.equal(calls[1].url, signedSource)
   assert.equal(calls[1].options.method, 'GET')
@@ -328,3 +336,72 @@ test('an expired object link reports a source error without expiring the app ses
   assert.equal(expired, 0)
   assert.equal(state.pending(), 0)
 })
+
+test('demo roles require server-enabled session state and allow only grantee or funder headers', async t => {
+  const headers = []
+  browser(t, async (_url, options) => { headers.push(options.headers); return Response.json({}) })
+  const values = storedSession()
+  setDemoEnabled(true); setDemoRole('funder')
+  await api('/health')
+  assert.equal(headers.at(-1)['x-grantthread-demo-role'], undefined)
+  setToken('visitor-one')
+  setDemoRole('funder')
+  await api('/session')
+  assert.equal(headers.at(-1)['x-grantthread-demo-role'], undefined)
+  setDemoEnabled(true); setDemoRole('grantee')
+  await api('/session')
+  assert.equal(headers.at(-1)['x-grantthread-demo-role'], 'grantee')
+  setDemoRole('funder')
+  await api('/shared-reports')
+  assert.equal(headers.at(-1)['x-grantthread-demo-role'], 'funder')
+  values.set('grantthread.demo.role', 'admin\r\nx-other: unsafe')
+  await api('/session')
+  assert.equal(headers.at(-1)['x-grantthread-demo-role'], 'grantee')
+  assert.equal(demoRole(), 'grantee')
+  assert.throws(() => setDemoRole('admin'), /supported demo role/)
+  values.set('grantthread.demo.enabled', 'true')
+  await api('/session')
+  assert.equal(headers.at(-1)['x-grantthread-demo-role'], undefined)
+})
+
+test('new tokens and sign-out clear demo role preferences while the same token preserves them', async t => {
+  browser(t, async () => Response.json({}))
+  const values = storedSession()
+  setToken('visitor-one'); setDemoEnabled(true); setDemoRole('funder')
+  setToken('visitor-one')
+  assert.equal(values.get('grantthread.demo.enabled'), '1')
+  assert.equal(demoRole(), 'funder')
+  setToken('visitor-two')
+  assert.equal(values.has('grantthread.demo.enabled'), false)
+  assert.equal(values.has('grantthread.demo.role'), false)
+  setDemoEnabled(true); setDemoRole('funder'); setToken(null)
+  assert.equal(values.has('grantthread.session'), false)
+  assert.equal(values.has('grantthread.demo.enabled'), false)
+  assert.equal(values.has('grantthread.demo.role'), false)
+})
+
+for (const localUpload of [false, true]) {
+  test(`${localUpload ? 'API upload retains' : 'S3 upload excludes'} authenticated demo role headers`, async t => {
+    const origin = 'https://grantthread.example'
+    const previousLocation = globalThis.location
+    globalThis.location = { origin }
+    t.after(() => { if (previousLocation === undefined) delete globalThis.location; else globalThis.location = previousLocation })
+    const uploadUrl = localUpload ? '/api/upload/fixture' : 'https://fixture-bucket.s3.amazonaws.com/source?signature=fixture'
+    const calls = []
+    browser(t, async (url, options) => {
+      calls.push({ url, options })
+      if (calls.length === 1) return Response.json({ id: 'fixture', uploadUrl, method: 'PUT', headers: { 'Content-Type': 'text/plain' } })
+      if (calls.length === 2) return new Response(null, { status: 200 })
+      return Response.json({ evidence: { id: 'fixture' } })
+    })
+    storedSession(); setToken('visitor'); setDemoEnabled(true); setDemoRole('grantee')
+    await uploadEvidence(new File(['fictional source'], 'source.txt', { type: 'text/plain' }), { grantIds: ['fixture'] })
+    assert.equal(calls.length, 3)
+    for (const index of [0, 2]) {
+      assert.equal(calls[index].options.headers.Authorization, 'Bearer visitor')
+      assert.equal(calls[index].options.headers['x-grantthread-demo-role'], 'grantee')
+    }
+    assert.equal(calls[1].options.headers.Authorization, localUpload ? 'Bearer visitor' : undefined)
+    assert.equal(calls[1].options.headers['x-grantthread-demo-role'], localUpload ? 'grantee' : undefined)
+  })
+}

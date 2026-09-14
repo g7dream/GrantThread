@@ -1,4 +1,6 @@
-export type User = { id: string; name: string; role: 'grantee' | 'funder'; organisationId: string; organisationName: string }
+export type User = { id: string; name: string; role: 'grantee' | 'funder'; organisationId: string; organisationName: string; demo?: boolean; demoRole?: 'grantee' | 'funder' }
+export type DemoWorkspace = { available: true; initialized: boolean; version: number | null; roles: ('grantee' | 'funder')[] }
+export type Session = { user: User; mode: string; demo?: DemoWorkspace }
 export type Readiness = { evidenced: number; total: number; ready: boolean; missing: string[] }
 export type Grant = { id: string; name: string; funderName: string; funderOrgId: string; granteeOrgId: string; currency: string; awardMinor: number; allocatedMinor: number; fundingMode: string; deadline: string | null; template: string; version: number; readiness: Readiness; synthetic?: boolean }
 export type Requirement = { id: string; grantId: string; title?: string; description?: string; name?: string; status?: string; evidenced?: boolean; satisfied?: boolean; deadline?: string; dueDate?: string; kind?: string; expenseId?: string }

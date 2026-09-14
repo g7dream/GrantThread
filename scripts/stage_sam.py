@@ -21,7 +21,7 @@ from release_config import ReleaseError
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_MARKER = "../artifacts/sam-source/UNSTAGED"
 MODULES = {
-    "__init__.py", "api.py", "auth.py", "bank_agent.py", "domain.py", "errors.py",
+    "__init__.py", "api.py", "auth.py", "bank_agent.py", "demo.py", "domain.py", "errors.py",
     "finance_io.py", "finance_math.py", "finance_service.py", "lambda_handler.py",
     "local_server.py", "reports.py", "repository.py", "response_estimates.py",
     "seed.py", "service.py", "storage.py", "worker.py",

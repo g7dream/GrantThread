@@ -1,12 +1,32 @@
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 const TOKEN_KEY = 'grantthread.session'
+const DEMO_ENABLED_KEY = 'grantthread.demo.enabled'
+const DEMO_ROLE_KEY = 'grantthread.demo.role'
+export type DemoRole = 'grantee' | 'funder'
 export class ApiError extends Error {
   status: number
   code: string
   constructor(message: string, status: number, code = '') { super(message); this.status = status; this.code = code }
 }
 export function token() { return sessionStorage.getItem(TOKEN_KEY) }
-export function setToken(value: string | null) { if (value) sessionStorage.setItem(TOKEN_KEY, value); else sessionStorage.removeItem(TOKEN_KEY) }
+export function setToken(value: string | null) {
+  if (!value || value !== token()) setDemoEnabled(false)
+  if (value) sessionStorage.setItem(TOKEN_KEY, value)
+  else sessionStorage.removeItem(TOKEN_KEY)
+}
+export function demoRole(): DemoRole { return sessionStorage.getItem(DEMO_ROLE_KEY) === 'funder' ? 'funder' : 'grantee' }
+export function setDemoRole(role: DemoRole) {
+  if (role !== 'grantee' && role !== 'funder') throw new Error('Choose a supported demo role.')
+  sessionStorage.setItem(DEMO_ROLE_KEY, role)
+}
+export function setDemoEnabled(enabled: boolean) {
+  if (enabled) sessionStorage.setItem(DEMO_ENABLED_KEY, '1')
+  else { sessionStorage.removeItem(DEMO_ENABLED_KEY); sessionStorage.removeItem(DEMO_ROLE_KEY) }
+}
+function authHeaders(): Record<string, string> {
+  const sessionToken = token()
+  return sessionToken ? { Authorization: `Bearer ${sessionToken}`, ...(sessionStorage.getItem(DEMO_ENABLED_KEY) === '1' ? { 'x-grantthread-demo-role': demoRole() } : {}) } : {}
+}
 export function apiUrl(path: string) { return `${API_BASE}${path}` }
 async function request<T>(path: string, options: RequestInit, read: (response: Response, signal: AbortSignal) => Promise<T>) {
   // Bound read requests without automatically retrying financial writes.
@@ -18,8 +38,7 @@ async function request<T>(path: string, options: RequestInit, read: (response: R
   const cancel = () => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) cancel()
   else options.signal?.addEventListener('abort', cancel, { once: true })
-  const sessionToken = token()
-  const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}), ...options.headers }
+  const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...authHeaders(), ...options.headers }
   try {
     let response: Response
     for (let attempt = 0; ; attempt++) {
@@ -119,7 +138,7 @@ export async function uploadEvidence(file: File, fields: Record<string, unknown>
   const target = /^https?:/.test(intent.uploadUrl) ? intent.uploadUrl : new URL(intent.uploadUrl, new URL(API_BASE, location.origin)).href
   // Bearer credentials belong only on the API's local upload route, never a signed S3 URL.
   const apiOrigin = new URL(API_BASE, location.origin).origin
-  const headers = { ...intent.headers, ...(new URL(target).origin === apiOrigin && token() ? { Authorization: `Bearer ${token()}` } : {}) }
+  const headers = { ...intent.headers, ...(new URL(target).origin === apiOrigin ? authHeaders() : {}) }
   const response = await fetch(target, { method: intent.method, headers, body: file })
   if (!response.ok) throw new ApiError('The evidence upload failed. Please try the file again.', response.status)
   return api('/evidence/complete', { id: intent.id })

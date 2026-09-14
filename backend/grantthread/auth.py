@@ -37,10 +37,18 @@ def gateway_identity(event, repository):
     claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
     require(claims.get("token_use") == "access" and claims.get("sub") and "grantthread/access" in claims.get("scope", "").split(),
             "A scoped Cognito access token is required", "unauthorised", 401)
+    headers = {key.lower(): value for key, value in (event.get("headers") or {}).items()}
+    requested_demo_role = headers.get("x-grantthread-demo-role")
     try:
         identity = repository.read_key("MEMBER#" + claims["sub"])
     except DomainError as exc:
+        if exc.code != "not_found" or exc.status != 404:
+            raise
+        from .demo import enabled, identity_for_subject
+        if enabled():
+            return identity_for_subject(claims["sub"], requested_demo_role if requested_demo_role is not None else "grantee")
         raise DomainError("This signed-in user has no GrantThread membership", "membership_required", 403) from exc
+    require(requested_demo_role is None, "Demo view selection is unavailable for this workspace", "forbidden", 403)
     require(identity.get("id") == claims["sub"] and identity.get("role") in {"grantee", "funder"} and identity.get("organisationId"),
             "Server membership is invalid", "forbidden", 403)
     return identity

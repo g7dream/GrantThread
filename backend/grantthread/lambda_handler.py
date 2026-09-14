@@ -24,7 +24,8 @@ def handler(event, context):
             return {"statusCode": 204, "headers": {"Cache-Control": "no-store"}, "body": ""}
         if path.rstrip("/") in {"/health", "/api/health"} and method == "GET":
             from .worker import agent_configured
-            return response(200, {"status": "ok", "mode": "aws", "agentConfigured": agent_configured()})
+            from .demo import enabled
+            return response(200, {"status": "ok", "mode": "aws", "agentConfigured": agent_configured(), "publicDemoSignup": enabled()})
         repository = get_repository()
         identity = gateway_identity(event, repository)
         raw = event.get("body") or ""

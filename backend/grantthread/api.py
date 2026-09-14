@@ -57,6 +57,17 @@ def dispatch(method, path, body, identity, repository=None, storage=None, raw=No
     parts = [part for part in path.strip("/").split("/") if part]
     if parts and parts[0] == "api":
         parts = parts[1:]
+    if parts == ["session"] and method == "GET":
+        from .demo import session
+        return session(identity, service.repository)
+    if len(parts) == 2 and parts[0] == "demo" and method == "POST":
+        from .demo import start, reset
+        if parts[1] == "start": return start(identity, service.repository, service.storage, body)
+        if parts[1] == "reset": return reset(identity, service.repository, service.storage, body)
+    if identity.get("publicDemo") is True:
+        from .demo import request_repository
+        repository = request_repository(identity, service.repository)
+        service.repository = repository
     if parts and parts[0] == 'financials':
         from .finance_service import FinancialService
         finance = FinancialService(identity, repository, storage)
@@ -100,8 +111,6 @@ def dispatch(method, path, body, identity, repository=None, storage=None, raw=No
                 if route[2] == 'review': return finance.review_import(route[1], body)
                 if route[2] == 'analyse': return dispatch_job(finance, finance.create_bank_job(route[1]))
         raise DomainError('Financial endpoint not found', 'not_found', 404)
-    if parts == ["session"] and method == "GET":
-        return {"user": identity, "mode": os.getenv("GRANTTHREAD_MODE", "local")}
     if method == "GET":
         if parts == ["activity"]: return service.activity()
         if parts == ["activity", "csv"]: return Binary(service.activity_csv(), "text/csv; charset=utf-8", "grantthread-activity.csv")

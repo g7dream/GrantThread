@@ -24,9 +24,15 @@ Parameters:
     Default: reserved
     AllowedValues: [reserved, shared-demo]
     Description: reserved isolates API/worker capacity; shared-demo uses the account pool for a small judging demo only.
+  PublicDemoSignup:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Allow verified email accounts to create their own isolated editable synthetic demo.
 
 Conditions:
   UseReservedCapacity: !Equals [!Ref CapacityMode, reserved]
+  PublicDemoEnabled: !Equals [!Ref PublicDemoSignup, 'true']
 
 Globals:
   Function:
@@ -50,9 +56,13 @@ Resources:
     Properties:
       UserPoolName: !Sub '${AWS::StackName}-users'
       AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: true
+        AllowAdminCreateUserOnly: !If [PublicDemoEnabled, false, true]
       UsernameAttributes: [email]
       AutoVerifiedAttributes: [email]
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailSubject: Verify your GrantThread demo account
+        EmailMessage: 'Your GrantThread verification code is {####}. Verify your email to create an editable copy of the fictional grant workspace. If you did not request an account, you can ignore this email.'
       Policies:
         PasswordPolicy:
           MinimumLength: 14
@@ -75,6 +85,7 @@ Resources:
     Properties:
       UserPoolId: !Ref UserPool
       GenerateSecret: false
+      ClientName: GrantThread
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
       AllowedOAuthScopes: [openid, email, profile, grantthread/access]
@@ -101,7 +112,7 @@ Resources:
       StageName: '$default'
       CorsConfiguration:
         AllowOrigins: [!Ref FrontendOrigin]
-        AllowHeaders: [authorization, content-type]
+        AllowHeaders: [authorization, content-type, x-grantthread-demo-role]
         AllowMethods: [GET, POST, PUT, OPTIONS]
         MaxAge: 600
       DefaultRouteSettings:
@@ -204,6 +215,7 @@ Resources:
         Variables:
           COGNITO_USER_POOL_ID: !Ref UserPool
           COGNITO_CLIENT_ID: !Ref UserPoolClient
+          GRANTTHREAD_PUBLIC_DEMO: !Ref PublicDemoSignup
       Policies:
         - Version: '2012-10-17'
           Statement:

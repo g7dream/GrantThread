@@ -22,17 +22,21 @@ class CapacityTemplate(unittest.TestCase):
             raise AssertionError(errors)
         cls.template = Template(str(SOURCE), deepcopy(cls.data), regions=["eu-north-1"])
 
-    def resolved(self, mode):
-        """Resolve the actual capacity property expressions with cfn-lint's evaluator."""
+    def resolved(self, mode, public_demo=False):
+        """Resolve capacity and signup expressions with cfn-lint's evaluator."""
         result = deepcopy(self.data)
-        scenario = {"UseReservedCapacity": mode == "reserved"}
+        scenario = {"UseReservedCapacity": mode == "reserved", "PublicDemoEnabled": public_demo}
         for name in ("ApiFunction", "WorkerFunction"):
             properties = result["Resources"][name]["Properties"]
             result["Resources"][name]["Properties"] = self.template.get_value_from_scenario(properties, scenario)
         properties = result["Resources"]["HttpApi"]["Properties"]
         properties["DefaultRouteSettings"] = self.template.get_value_from_scenario(
             properties["DefaultRouteSettings"], scenario)
+        properties = result["Resources"]["UserPool"]["Properties"]
+        properties["AdminCreateUserConfig"] = self.template.get_value_from_scenario(
+            properties["AdminCreateUserConfig"], scenario)
         result["Parameters"]["CapacityMode"]["Default"] = mode
+        result["Parameters"]["PublicDemoSignup"]["Default"] = str(public_demo).lower()
         del result["Conditions"]
         return result
 
@@ -75,17 +79,18 @@ class CapacityTemplate(unittest.TestCase):
         # IAM, authorizer, job limits, storage and timeouts must not vary by mode.
         self.assertEqual(shared, reserved)
 
-    def test_conditional_and_both_resolved_templates_pass_sam_schema_lint(self):
+    def test_conditional_and_all_resolved_templates_pass_sam_schema_lint(self):
         for mode, source in [("conditional", self.source)] + [
-            (mode, json.dumps(self.resolved(mode))) for mode in ("reserved", "shared-demo")
+            (f"{mode}/signup={public_demo}", json.dumps(self.resolved(mode, public_demo)))
+            for mode in ("reserved", "shared-demo") for public_demo in (False, True)
         ]:
             with self.subTest(mode=mode):
                 self.assertEqual(lint(source, regions=["eu-north-1"]), [])
 
     def test_preflight_is_public_without_relaxing_application_authorization(self):
-        for mode in ("reserved", "shared-demo"):
-            with self.subTest(mode=mode):
-                resources = self.resolved(mode)["Resources"]
+        for mode, public_demo in [(mode, enabled) for mode in ("reserved", "shared-demo") for enabled in (False, True)]:
+            with self.subTest(mode=mode, public_demo=public_demo):
+                resources = self.resolved(mode, public_demo)["Resources"]
                 events = resources["ApiFunction"]["Properties"]["Events"]
                 self.assertEqual(events["Preflight"], {"Type": "HttpApi", "Properties": {
                     "ApiId": {"Ref": "HttpApi"}, "Path": "/api/{proxy+}", "Method": "OPTIONS",
@@ -100,12 +105,46 @@ class CapacityTemplate(unittest.TestCase):
                 self.assertEqual(auth["Authorizers"]["CognitoAccess"]["AuthorizationScopes"],
                                  ["grantthread/access"])
 
+    def test_public_signup_is_opt_in_without_changing_other_resource_permissions(self):
+        parameter = self.data["Parameters"]["PublicDemoSignup"]
+        self.assertEqual(parameter["Default"], "false")
+        self.assertEqual(set(parameter["AllowedValues"]), {"false", "true"})
+        self.assertEqual(self.data["Conditions"]["PublicDemoEnabled"],
+                         {"Fn::Equals": [{"Ref": "PublicDemoSignup"}, "true"]})
+        for mode in ("reserved", "shared-demo"):
+            with self.subTest(mode=mode):
+                disabled, enabled = self.resolved(mode), self.resolved(mode, True)
+                for data, expected_admin_only in ((disabled, True), (enabled, False)):
+                    self.assertIs(data["Resources"]["UserPool"]["Properties"]["AdminCreateUserConfig"]["AllowAdminCreateUserOnly"], expected_admin_only)
+                    self.assertEqual(data["Resources"]["UserPool"]["Properties"]["AutoVerifiedAttributes"], ["email"])
+                    self.assertEqual(data["Resources"]["ApiFunction"]["Properties"]["Environment"]["Variables"]["GRANTTHREAD_PUBLIC_DEMO"],
+                                     {"Ref": "PublicDemoSignup"})
+                disabled["Parameters"]["PublicDemoSignup"]["Default"] = "true"
+                disabled["Resources"]["UserPool"]["Properties"]["AdminCreateUserConfig"]["AllowAdminCreateUserOnly"] = False
+                self.assertEqual(disabled, enabled)
+
+    def test_demo_role_header_does_not_allow_runtime_membership_writes(self):
+        for mode, public_demo in [(mode, enabled) for mode in ("reserved", "shared-demo") for enabled in (False, True)]:
+            with self.subTest(mode=mode, public_demo=public_demo):
+                resources = self.resolved(mode, public_demo)["Resources"]
+                cors = resources["HttpApi"]["Properties"]["CorsConfiguration"]
+                self.assertEqual(cors["AllowHeaders"], ["authorization", "content-type", "x-grantthread-demo-role"])
+                self.assertEqual(cors["AllowOrigins"], [{"Ref": "FrontendOrigin"}])
+                for function in ("ApiFunction", "WorkerFunction"):
+                    for policy in resources[function]["Properties"]["Policies"]:
+                        for statement in policy["Statement"]:
+                            actions = statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+                            self.assertFalse(any(action.startswith("cognito-idp:") for action in actions))
+                            if any(action in {"dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:*", "*"} for action in actions):
+                                self.assertEqual(statement["Resource"], {"Fn::GetAtt": ["DataTable", "Arn"]})
+                                self.assertEqual(statement["Condition"]["ForAllValues:StringLike"]["dynamodb:LeadingKeys"], ["ORG#*"])
+
     def test_budget_is_separate_from_regional_application_in_both_modes(self):
         for mode in ("reserved", "shared-demo"):
             with self.subTest(mode=mode):
                 data = self.resolved(mode)
                 self.assertEqual(set(data["Parameters"]), {
-                    "FrontendOrigin", "CallbackUrl", "CognitoDomainPrefix", "BedrockModelId", "CapacityMode"})
+                    "FrontendOrigin", "CallbackUrl", "CognitoDomainPrefix", "BedrockModelId", "CapacityMode", "PublicDemoSignup"})
                 self.assertFalse(any(resource["Type"] == "AWS::Budgets::Budget"
                                      for resource in data["Resources"].values()))
 
