@@ -4,6 +4,8 @@
 
 GrantThread records expenses once, keeps proposed allocations separate from confirmed money, connects versioned evidence, prepares reports, and preserves a question-and-response history around immutable shared packages. Its Financials workspace adds XLSX ledger imports, text-based bank PDF review, funding receipts, exact currency conversion and mapped report-template exports. All bundled organisations, documents and outcomes are **synthetic demonstration data**.
 
+Source is published at [g7dream/GrantThread](https://github.com/g7dream/GrantThread). Public access, default branch `master`, README and MIT licence were independently verified at source revision [`3b4ceba`](https://github.com/g7dream/GrantThread/commit/3b4ceba8b83e0924c7a7eda425768d865d964101).
+
 ## Current release status
 
 The local P0 workflow is implemented and has been exercised from import through funder acknowledgement. It includes a React/TypeScript interface, persistent Python API, exact financial calculations, source review, PDF/manifest exports, server-issued local demo sessions and scoped funder views. The repository also includes a real Strands/Bedrock worker and AWS SAM infrastructure.

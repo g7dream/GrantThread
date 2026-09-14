@@ -1,6 +1,6 @@
 # GrantThread — Many grants. One clear thread.
 
-**Submission draft, updated 14 September 2026.** The local workflow and 244 automated tests have passed. The AWS backend stack is deployed, basic public API checks have passed, and a direct regional Nova Lite tool roundtrip is verified. A genuine GrantThread Strands reconciliation is verified: four model calls, eight successful tool calls and a correct waiting_input result for missing proof and human allocation review. Actual hosted Cognito sign-in, normal reload, financial display and XLSX download/readback now pass. A fresh portfolio-wide browser job reached its tool budget and saved no draft; hosted sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified. Repeated judge demonstrations remain open. The public repository exists but is empty; source publication, the video and required entrant details remain pending. These are separate gates, not a completed submission.
+**Submission draft, updated 14 September 2026.** The local workflow and 244 automated tests have passed. The AWS backend stack is deployed, basic public API checks have passed, and a direct regional Nova Lite tool roundtrip is verified. A genuine GrantThread Strands reconciliation is verified: four model calls, eight successful tool calls and a correct waiting_input result for missing proof and human allocation review. Actual hosted Cognito sign-in, normal reload, financial display and XLSX download/readback now pass. A fresh portfolio-wide browser job reached its tool budget and saved no draft; hosted sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified. Repeated judge demonstrations remain open. Source revision 3b4ceba is publicly published; README and MIT licence were independently verified. The video and required entrant details remain pending. These are separate gates, not a completed submission.
 
 ## Tagline
 
@@ -60,14 +60,14 @@ Complete the final download checks and hosted judge journey, record the genuine 
 
 | Field or gate | Current value |
 | --- | --- |
-| Repository | [g7dream/GrantThread](https://github.com/g7dream/GrantThread) exists and is public; empty repository verified. PENDING final source publication and public README/licence check. |
+| Repository | [g7dream/GrantThread](https://github.com/g7dream/GrantThread), public source revision [`3b4ceba`](https://github.com/g7dream/GrantThread/commit/3b4ceba8b83e0924c7a7eda425768d865d964101). Public visibility, default branch `master`, README and MIT licence independently verified. |
 | Live URL or functioning test build route | Destination: `https://timeillusion.com/grantthread/`. Hosted grantee sign-in/reload and financial XLSX readback verified; selected sharing and a source-linked question/answer also verified. Financial PDF values, final-bundle selected original/shared-PDF/shared-manifest downloads and resolved clarification also verified. PENDING three consecutive full judge journeys and final handoff. Local setup is documented in [SETUP.md](../SETUP.md). |
 | Genuine GrantThread agent evidence | Verified job `job-f2ce0cb489044197`, regional Nova Lite in `eu-north-1`, four model calls/eight tool successes, 8.59-second worker execution, final `waiting_input` with missing proof and human allocation review. The fresh portfolio-wide browser run separately hit its budget with no draft. PENDING final recording and completed judge journey. |
 | Video | PENDING recording, public YouTube/Vimeo URL and measured duration of at most five minutes. |
 | AWS Builder ID | PENDING entrant's Builder profile email, entered privately in the submission form; not the AWS account number. |
 | Architecture | [ARCHITECTURE.md](../ARCHITECTURE.md); Deployed status recorded; PENDING export a readable diagram for the submission. |
 | Testing instructions | PENDING verified hosted judge identities and access instructions, including availability through the judging period. |
-| Licence and dependency notices | Root MIT licence exists; PENDING final dependency notices and published artifact checks. |
+| Licence and dependency notices | Public root MIT licence verified; dependency and fixture notices are included in the published source. Recheck notices against any later packaged release. |
 | Build dates and contributors | PENDING confirm final history and contributor details. |
 | AI coding assistance | Codex used during implementation. |
 | Prior work and support disclosure | PENDING contributor review; do not infer absence. |

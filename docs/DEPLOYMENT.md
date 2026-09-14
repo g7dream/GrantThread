@@ -4,7 +4,7 @@ The confirmed frontend destination is **`https://timeillusion.com/grantthread/`*
 
 The application `grantthread-demo` in `eu-north-1` and budget `grantthread-demo-budget` in `us-east-1` reached CREATE_COMPLETE. A genuine regional Nova Lite Strands reconciliation and 49 cloud backend checks passed through administrative Lambda invocation with trusted gateway claims; public-browser proof is recorded separately and now includes the grantee sign-in/reload and XLSX download. Selected sharing, verified original-download bytes and the resolved hosted clarification pass. These bounded checks do not establish universal cross-role or JWT security coverage. The owner selected `CapacityMode=shared-demo` under the current quota of 10. Use UPDATE change sets for these existing stacks, after inspecting their state. [EVALUATION.md](EVALUATION.md) records exact proof and current blockers.
 
-Public GitHub publication under `g7dream` is authorised. [g7dream/GrantThread](https://github.com/g7dream/GrantThread) exists publicly and authentication is verified; it is still empty pending the source/docs freeze and push. Video, entrant details and submission are separate unfinished steps.
+Source revision `3b4ceba8b83e0924c7a7eda425768d865d964101` is published at [g7dream/GrantThread](https://github.com/g7dream/GrantThread). Unauthenticated GitHub API checks independently verified public visibility, default branch `master`, README and MIT licence. Video, entrant details and submission are separate unfinished steps.
 
 ## Current operation and hardening
 
