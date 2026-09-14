@@ -75,6 +75,25 @@ class Financials(unittest.TestCase):
         self.assertEqual(stored['fxRate'], '0.25')
         self.assertEqual(stored['reportAmountMinor'], 2500)
 
+    def test_financial_source_descriptor_preserves_grantee_scope_without_reading_bytes(self):
+        result = self.service.upload_import({'kind': 'ledger', 'grantId': self.grant['id'], 'name': 'fictional-ledger.xlsx',
+            'contentBase64': base64.b64encode(self.workbook()).decode()})
+        path = f'/financials/imports/{result["id"]}/source'
+        original = dispatch('GET', path, {}, IDENTITIES['brightpath'], self.repo, self.storage)
+        self.assertIsInstance(original, Binary)
+        self.assertTrue(original.data.startswith(b'PK'))
+        with patch.object(self.storage, 'presign_get', return_value='https://synthetic-bucket.example.test/private-ledger') as sign, \
+             patch.object(self.storage, 'get') as read_bytes:
+            descriptor = dispatch('GET', path, {}, IDENTITIES['brightpath'], self.repo, self.storage)
+            self.assertEqual(descriptor, {'downloadUrl': 'https://synthetic-bucket.example.test/private-ledger',
+                                         'contentType': original.content_type, 'filename': original.name})
+            self.assertTrue(sign.call_args.args[0].startswith('brightpath/'))
+            sign.reset_mock()
+            self.deny(lambda: dispatch('GET', path, {}, IDENTITIES['harbour'], self.repo, self.storage), 'not_found')
+            self.deny(lambda: dispatch('GET', path, {}, IDENTITIES['northstar'], self.repo, self.storage), 'forbidden')
+            sign.assert_not_called()
+            read_bytes.assert_not_called()
+
     def test_weighted_rate_not_average_of_rates_and_excludes_future_receipts(self):
         first = self.receipt(amount='1000', rate='0.3')
         second = self.receipt(amount='3000', rate='0.4', received='2026-04-02')
@@ -178,6 +197,74 @@ class Financials(unittest.TestCase):
         text = PdfReader(io.BytesIO(pdf_bytes(old_style))).pages[0].extract_text()
         self.assertIn('CAD 30.00', text)
         self.assertNotIn('EUR', text)
+
+    def test_core_report_records_grant_wide_receipts_in_reporting_currency(self):
+        receipt = self.receipt(rate='4', rateDirection='source_per_report')
+        self.receipt(amount='200', rate='0.5', received='2026-03-01')
+        self.receipt(amount='200', rate='0.25', received='2026-07-01')
+        self.service.add_receipt({'grantId': 'digital-belonging', 'sourceCurrency': 'EUR', 'sourceAmount': '900',
+                                 'receivedDate': '2026-04-01', 'rate': '1'})
+        self.confirm(self.draft(conversionMode='receipt', receiptId=receipt['id']))
+        period = self.service.save_report_settings(self.grant['id'], {
+            'periodStart': '2026-04-01', 'periodEnd': '2026-06-30', 'budgets': {}})
+        self.assertEqual(period['receiptsTotalMinor'], 25000)
+        report = self.service.assemble_report_draft(self.grant['id'])
+        # Core reports are grant-wide, unlike the period-selected Financials view.
+        self.assertEqual(report['confirmedReceiptsMinor'], 40000)
+        self.assertEqual(report['allocatedMinor'], 2500)
+        from grantthread.reports import pdf_bytes
+        from pypdf import PdfReader
+        text = PdfReader(io.BytesIO(pdf_bytes(report))).pages[0].extract_text()
+        self.assertIn('Recorded funding receipts', text)
+        self.assertIn('CAD 400.00', text)
+        self.assertIn('CAD 25.00', text)
+        self.assertNotIn('Not provided', text)
+        self.assertNotIn('EUR', text)
+
+    def test_core_report_distinguishes_absent_receipts_and_rounded_zero(self):
+        from grantthread.reports import pdf_bytes
+        from pypdf import PdfReader
+        missing = self.service.assemble_report_draft(self.grant['id'])
+        self.assertIsNone(missing['confirmedReceiptsMinor'])
+        self.assertIn('Not provided', PdfReader(io.BytesIO(pdf_bytes(missing))).pages[0].extract_text())
+        self.receipt(amount='0.01', rate='0.01')
+        zero = self.service.assemble_report_draft(self.grant['id'])
+        self.assertEqual(zero['confirmedReceiptsMinor'], 0)
+        self.assertIs(type(zero['confirmedReceiptsMinor']), int)
+        text = PdfReader(io.BytesIO(pdf_bytes(zero))).pages[0].extract_text()
+        self.assertIn('CAD 0.00', text)
+        self.assertNotIn('Not provided', text)
+        legacy = {k: v for k, v in zero.items() if k != 'confirmedReceiptsMinor'}
+        self.assertIn('Not provided', PdfReader(io.BytesIO(pdf_bytes(legacy))).pages[0].extract_text())
+
+    def test_core_report_rejects_invalid_receipts_before_reusing_cached_draft(self):
+        receipt = self.receipt(rate='0.25')
+        self.service.assemble_report_draft(self.grant['id'])
+        cases = [('reportCurrency', 'EUR', 'currency_mismatch')]
+        cases += [('reportAmountMinor', value, 'invalid_receipt') for value in (-1, True, 25000.0, '25000', None)]
+        for field, value, code in cases:
+            with self.subTest(field=field, value=value):
+                def corrupt(data):
+                    data['fundingReceipts'][receipt['id']] = {**receipt, field: value}
+                self.repo.mutate('brightpath', corrupt)
+                before = self.repo.read('brightpath')
+                self.deny(lambda: self.service.assemble_report_draft(self.grant['id']), code)
+                self.assertEqual(self.repo.read('brightpath'), before)
+
+    def test_core_report_replaces_legacy_receipt_placeholder_without_mutating_history(self):
+        self.receipt(rate='0.25')
+        initial = self.service.assemble_report_draft(self.grant['id'])
+        def legacy_placeholder(data):
+            data['reports'][initial['id']]['confirmedReceiptsMinor'] = None
+        self.repo.mutate('brightpath', legacy_placeholder)
+        original = copy.deepcopy(self.repo.read('brightpath')['reports'][initial['id']])
+        current = self.service.assemble_report_draft(self.grant['id'])
+        self.assertNotEqual(current['id'], original['id'])
+        self.assertEqual(current['version'], original['version'] + 1)
+        self.assertEqual(current['inputVersion'], original['inputVersion'])
+        self.assertEqual(current['confirmedReceiptsMinor'], 25000)
+        self.assertEqual(self.repo.read('brightpath')['reports'][original['id']], original)
+        self.assertEqual(self.service.assemble_report_draft(self.grant['id'])['id'], current['id'])
 
     def test_unconfirmed_financial_change_stales_prepared_reports(self):
         report = self.service.assemble_report_draft('digital-belonging')

@@ -19,7 +19,11 @@ class Redirect:
 
 def source_download(source):
     # Private S3 downloads avoid Lambda's response limit for permitted 5 MB files.
-    return Redirect(source[0]) if isinstance(source[0], str) else Binary(*source)
+    # A separate credentialless browser fetch retains the configured CORS origin;
+    # redirecting the authenticated cross-origin API request can produce Origin: null.
+    if isinstance(source[0], str):
+        return {"downloadUrl": source[0], "contentType": source[1], "filename": source[2]}
+    return Binary(*source)
 
 
 def dispatch_job(service, job):

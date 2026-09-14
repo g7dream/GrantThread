@@ -50,7 +50,7 @@ First complete [AWS_FIRST_STEPS.md](AWS_FIRST_STEPS.md), verify a tool-capable r
 
 Restart the local backend with those values and trigger an evidence job. Record its actual outcome and tool events. A successful local Bedrock invocation still does not verify the deployed Cognito/API/SQS path.
 
-When using the combined launcher for this deliberate model test, omit `-Offline`; the launcher still forces local storage and the local frontend. AWS account selection is currently paused, so use offline mode for the current test pass.
+When using the combined launcher for this deliberate model test, omit `-Offline`; the launcher still forces local storage and the local frontend. Intended-account login, a direct regional Nova Lite tool roundtrip and a genuine deployed GrantThread reconciliation are verified; the last correctly reached `waiting_input` for missing proof and allocation review. Hosted grantee sign-in/reload and financial XLSX readback now pass. Hosted selected sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified; a fresh portfolio-wide job hit its tool budget and saved no draft. See [EVALUATION.md](EVALUATION.md). Keep `-Offline` for tests that are not deliberately exercising Bedrock.
 
 ## Reset and build
 

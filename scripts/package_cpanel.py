@@ -13,6 +13,7 @@ import os
 import re
 import tempfile
 import zipfile
+from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -23,6 +24,17 @@ MANIFEST = "grantthread-build.json"
 STATIC_ROOT_FILES = {"index.html", "INTER-LICENSE.txt", MANIFEST}
 ASSET_EXTENSIONS = {".js", ".css", ".woff", ".woff2", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".avif", ".ico"}
 SECRET_PATTERN = re.compile(rb"(?:AKIA|ASIA)[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")
+
+
+def content_timestamp(content: bytes) -> tuple[int, ...]:
+    # LiteSpeed can reuse compressed bytes when mtime and size are unchanged.
+    # Derive DOS-resolution timestamps from content, not build time, so changed
+    # equal-sized entry files refresh that cache and identical ZIPs stay repeatable.
+    # Use a fixed past range within ZIP's 1980-2107 limits, avoiding future HTTP dates.
+    start = datetime(1980, 1, 1)
+    slots = (datetime(2020, 1, 1) - start).days * 24 * 60 * 30
+    slot = int.from_bytes(hashlib.sha256(content).digest()[:8], "big") % slots
+    return (start + timedelta(seconds=slot * 2)).timetuple()[:6]
 
 
 class AssetReferences(HTMLParser):
@@ -129,7 +141,16 @@ Header always set X-Content-Type-Options nosniff
 Header always set Referrer-Policy strict-origin-when-cross-origin
 Header always set X-Frame-Options DENY
 <FilesMatch "^(index\\.html|grantthread-build\\.json)$">
-Header set Cache-Control "no-store"
+# ZIP timestamps are fixed: old browser validators must not yield stale 304s.
+FileETag None
+RequestHeader unset If-Modified-Since
+RequestHeader unset If-None-Match
+Header unset Last-Modified
+Header always unset Last-Modified
+Header unset ETag
+Header always unset ETag
+Header unset Cache-Control
+Header always set Cache-Control "no-store"
 </FilesMatch>
 </IfModule>
 """
@@ -178,12 +199,12 @@ def package(root: Path, base: str, site_url: str | None, preview: bool = False) 
         notices.append(name + "\n" + licence.read_text(encoding="utf-8"))
     notices.append("Inter font: see INTER-LICENSE.txt in this package.")
     files["THIRD_PARTY_NOTICES.txt"] = "\n\n".join(notices).encode("utf-8")
-    # Validate all inputs before touching the prior artifact. Fixed timestamps,
-    # permissions and sorted names make identical contents produce identical ZIPs.
+    # Validate all inputs before touching the prior artifact. Content-derived
+    # timestamps, permissions and sorted names preserve identical ZIP builds.
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, content in sorted(files.items()):
-            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info = zipfile.ZipInfo(name, date_time=content_timestamp(content))
             info.create_system = 3
             info.external_attr = 0o100644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED

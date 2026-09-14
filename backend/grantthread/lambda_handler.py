@@ -18,6 +18,10 @@ def handler(event, context):
         require(os.getenv("GRANTTHREAD_MODE") == "aws", "Cloud handler configuration is invalid", "configuration_error", 503)
         method = event.get("requestContext", {}).get("http", {}).get("method", "")
         path = event.get("rawPath", "/")
+        if method == "OPTIONS" and path.startswith("/api/"):
+            # The public preflight integration never authenticates or accesses data.
+            # API Gateway supplies CORS headers from its configured origin allowlist.
+            return {"statusCode": 204, "headers": {"Cache-Control": "no-store"}, "body": ""}
         if path.rstrip("/") in {"/health", "/api/health"} and method == "GET":
             from .worker import agent_configured
             return response(200, {"status": "ok", "mode": "aws", "agentConfigured": agent_configured()})

@@ -507,7 +507,13 @@ class Service:
         self.grantee()
         def mutate(data):
             grant = self.grant(data, grant_id)
-            existing = next((r for r in reversed(list(data["reports"].values())) if r["grantId"] == grant_id and r["inputVersion"] == data["factVersion"] and not r.get("sharedSnapshotId")), None)
+            receipts = [receipt for receipt in data.get("fundingReceipts", {}).values() if receipt["grantId"] == grant_id]
+            for receipt in receipts:
+                require(receipt.get("reportCurrency") == grant["currency"], "Receipt reporting currency does not match this grant", "currency_mismatch")
+                require(type(receipt.get("reportAmountMinor")) is int and receipt["reportAmountMinor"] >= 0, "Receipt reporting amount is invalid", "invalid_receipt")
+            # Core reports cover the whole grant, including the frozen conversions of all recorded receipts.
+            confirmed_receipts = sum(receipt["reportAmountMinor"] for receipt in receipts) if receipts else None
+            existing = next((r for r in reversed(list(data["reports"].values())) if r["grantId"] == grant_id and r["inputVersion"] == data["factVersion"] and not r.get("sharedSnapshotId") and r.get("confirmedReceiptsMinor") == confirmed_receipts), None)
             if existing:
                 return existing
             version = 1 + max((r["version"] for r in data["reports"].values() if r["grantId"] == grant_id), default=0)
@@ -535,7 +541,7 @@ class Service:
                       "allocatedMinor": allocated, "expenses": expenses, "activities": activities, "narrative": narrative,
                       "sourceRefs": refs, "availableAttachments": [{k: e[k] for k in ("id", "name", "version", "kind")} for e in evidence],
                       "synthetic": not any(e['grantId'] == grant_id for e in data.get('financeEntries', {}).values()) and grant.get('synthetic', True),
-                      "factsOrigin": "confirmed records and deterministic calculations", "confirmedReceiptsMinor": None}
+                      "factsOrigin": "confirmed records and deterministic calculations", "confirmedReceiptsMinor": confirmed_receipts}
             data["reports"][report_id] = report
             self.audit(data, "report_prepared", report_id)
             return report

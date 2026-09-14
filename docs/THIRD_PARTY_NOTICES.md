@@ -27,7 +27,7 @@ The following inventory was checked against the installed distributions, their l
 
 `scripts/package_cpanel.py` collects the installed React, React DOM and Lucide licence text into `THIRD_PARTY_NOTICES.txt`. The Inter notice is copied from `frontend/public/` with the static build. It packages compiled frontend assets, not backend dependencies, uploaded bank statements, ledgers, private templates or runtime records. Inspect the final ZIP, because files placed in the public asset directory are public by design.
 
-The AWS/backend dependency installation includes openpyxl, et_xmlfile, pypdf, ReportLab and the agent stack pinned in `backend/requirements.txt`. Preserve distribution licence and notice files, including ReportLab's separate bundled-font notices, when preparing that artifact. No AWS artifact deployment is claimed verified here.
+The AWS/backend dependency installation includes openpyxl, et_xmlfile, pypdf, ReportLab and the agent stack pinned in `backend/requirements.txt`. Preserve distribution licence and notice files, including ReportLab's separate bundled-font notices, when preparing that artifact. The Linux runtime artifact has now executed on AWS, including XLSX/PDF and genuine Strands checks; that runtime proof does not complete the remaining transitive licence audit.
 
 User financial sources and funder workbooks are private input, not project fixtures or reusable licensed templates. Do not copy them into public examples, source history, notices, screenshots or release ZIPs. Only fictional fixtures and temporary fictional test workbooks/statements belong in public verification material. A bank-layout recogniser names a format; it does not imply access to that bank or endorsement.
 

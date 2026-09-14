@@ -42,7 +42,9 @@ def pdf_bytes(report):
         story += [paragraph("EARLIER DRAFT — source records changed", "Section"),
                   paragraph("This export preserves an earlier report version. Prepare a new version before sharing.")]
     story += [paragraph(report["narrative"]), paragraph("Confirmed figures", "Section")]
-    summary = [["Awarded budget", money(report["awardMinor"], report['currency'])], ["Allocated expenses", money(report["allocatedMinor"], report['currency'])], ["Confirmed receipts", "Not provided"]]
+    receipts = report.get("confirmedReceiptsMinor")
+    summary = [["Awarded budget", money(report["awardMinor"], report['currency'])], ["Allocated expenses", money(report["allocatedMinor"], report['currency'])],
+               ["Recorded funding receipts", money(receipts, report['currency']) if receipts is not None else "Not provided"]]
     table = Table(summary, colWidths=[105 * mm, 65 * mm])
     table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F6F7F4")), ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
                                ("FONTSIZE", (0, 0), (-1, -1), 10), ("PADDING", (0, 0), (-1, -1), 10), ("ALIGN", (1, 0), (1, -1), "RIGHT")]))

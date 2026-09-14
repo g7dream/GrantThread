@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -137,7 +138,54 @@ class PackageTests(unittest.TestCase):
             self.assertIn(".htaccess", archive.namelist())
             self.assertIn("THIRD_PARTY_NOTICES.txt", archive.namelist())
             self.assertIn(b"CLOUD CONFIGURATION VALIDATED OFFLINE", archive.read("DEPLOYMENT.txt"))
-            self.assertTrue(all(info.date_time == (1980, 1, 1, 0, 0, 0) for info in archive.infolist()))
+            self.assertTrue(all((1980, 1, 1, 0, 0, 0) <= info.date_time < (2020, 1, 1, 0, 0, 0)
+                                and info.date_time[5] % 2 == 0 for info in archive.infolist()))
+
+    def test_equal_length_entry_updates_change_zip_times_without_changing_unchanged_assets(self):
+        files = build_files()
+        files["index.html"] = files["index.html"].replace(b'<script ', b'<script data-build="A" ')
+        def write_current():
+            metadata = json.loads(files[MANIFEST])
+            metadata["assets"]["index.html"] = hashlib.sha256(files["index.html"]).hexdigest()
+            files[MANIFEST] = json.dumps(metadata).encode()
+            self.write_build(files)
+        write_current()
+        first = package(self.root, BASE, SITE)
+        with zipfile.ZipFile(first["zip"]) as archive:
+            before = {info.filename: (info.date_time, info.file_size) for info in archive.infolist()}
+        files["index.html"] = files["index.html"].replace(b'data-build="A"', b'data-build="B"')
+        write_current()
+        second = package(self.root, BASE, SITE)
+        with zipfile.ZipFile(second["zip"]) as archive:
+            after = {info.filename: (info.date_time, info.file_size) for info in archive.infolist()}
+        for name in ("index.html", MANIFEST):
+            self.assertEqual(before[name][1], after[name][1])
+            self.assertNotEqual(before[name][0], after[name][0])
+        for name in before.keys() - {"index.html", MANIFEST}:
+            self.assertEqual(before[name], after[name])
+        self.assertEqual(package(self.root, BASE, SITE)["sha256"], second["sha256"])
+
+    def test_entry_files_ignore_old_cache_validators_without_changing_asset_caching(self):
+        result = package(self.root, BASE, SITE)
+        with zipfile.ZipFile(result["zip"]) as archive:
+            access = archive.read(".htaccess").decode()
+        match = re.search(r'<FilesMatch "([^"]+)">\n(.*?)</FilesMatch>', access, re.S)
+        self.assertIsNotNone(match)
+        pattern, block = match.groups()
+        for name in ("index.html", "grantthread-build.json"):
+            self.assertIsNotNone(re.fullmatch(pattern, name))
+        for name in ("index-abcd.js", "index-abcd.css", "inter.woff2", "other.html", "other.json"):
+            self.assertIsNone(re.fullmatch(pattern, name))
+        directives = set(block.splitlines())
+        self.assertTrue({
+            "FileETag None", "RequestHeader unset If-Modified-Since", "RequestHeader unset If-None-Match",
+            "Header unset Last-Modified", "Header always unset Last-Modified",
+            "Header unset ETag", "Header always unset ETag", 'Header always set Cache-Control "no-store"',
+        }.issubset(directives))
+        # Validator removal must remain within the entry-only FilesMatch block.
+        outside = access[:match.start()] + access[match.end():]
+        for token in ("FileETag", "RequestHeader", "Last-Modified", "ETag", "Cache-Control"):
+            self.assertNotIn(token, outside)
 
     def test_cloud_packaging_requires_site_and_preview_has_separate_name(self):
         with self.assertRaisesRegex(ReleaseError, "requires --site-url"):

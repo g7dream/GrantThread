@@ -19,15 +19,14 @@ Parameters:
     Type: String
     Description: Verified regional foundation-model ID. No ARN, cross-region prefix, or inference profile.
     AllowedPattern: '^(?!(?:us|eu|apac|jp|au|global)\.)[a-z][a-z0-9-]*\.[a-zA-Z0-9][a-zA-Z0-9.:-]*$'
-  BudgetEmail:
+  CapacityMode:
     Type: String
-    Description: Operational recipient for monthly actual and forecast cost alerts.
-    AllowedPattern: '^[^ @]+@[^ @]+\.[^ @]+$'
-  MonthlyBudgetUsd:
-    Type: Number
-    Default: 25
-    MinValue: 1
-    MaxValue: 100
+    Default: reserved
+    AllowedValues: [reserved, shared-demo]
+    Description: reserved isolates API/worker capacity; shared-demo uses the account pool for a small judging demo only.
+
+Conditions:
+  UseReservedCapacity: !Equals [!Ref CapacityMode, reserved]
 
 Globals:
   Function:
@@ -106,8 +105,8 @@ Resources:
         AllowMethods: [GET, POST, PUT, OPTIONS]
         MaxAge: 600
       DefaultRouteSettings:
-        ThrottlingBurstLimit: 20
-        ThrottlingRateLimit: 10
+        ThrottlingBurstLimit: !If [UseReservedCapacity, 20, 5]
+        ThrottlingRateLimit: !If [UseReservedCapacity, 10, 5]
       Auth:
         DefaultAuthorizer: CognitoAccess
         Authorizers:
@@ -153,7 +152,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins: [!Ref FrontendOrigin]
-            AllowedMethods: [PUT]
+            AllowedMethods: [PUT, GET]
             AllowedHeaders: [content-type]
             MaxAge: 600
       LifecycleConfiguration:
@@ -200,7 +199,7 @@ Resources:
       CodeUri: ../artifacts/sam-source/UNSTAGED
       Handler: grantthread.lambda_handler.handler
       Timeout: 28
-      ReservedConcurrentExecutions: 5
+      ReservedConcurrentExecutions: !If [UseReservedCapacity, 5, !Ref 'AWS::NoValue']
       Environment:
         Variables:
           COGNITO_USER_POOL_ID: !Ref UserPool
@@ -233,6 +232,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /api/{proxy+}
             Method: ANY
+        Preflight:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/{proxy+}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
         Health:
           Type: HttpApi
           Properties:
@@ -249,7 +256,7 @@ Resources:
       Handler: grantthread.worker.handler
       Timeout: 195
       MemorySize: 768
-      ReservedConcurrentExecutions: 2
+      ReservedConcurrentExecutions: !If [UseReservedCapacity, 2, !Ref 'AWS::NoValue']
       Policies:
         - Version: '2012-10-17'
           Statement:
@@ -284,35 +291,10 @@ Resources:
     Properties:
       LogGroupName: !Sub '/aws/lambda/${WorkerFunction}'
       RetentionInDays: 14
-  CostBudget:
-    Type: AWS::Budgets::Budget
-    Properties:
-      Budget:
-        BudgetName: !Sub '${AWS::StackName}-monthly'
-        BudgetType: COST
-        TimeUnit: MONTHLY
-        BudgetLimit:
-          Amount: !Ref MonthlyBudgetUsd
-          Unit: USD
-      NotificationsWithSubscribers:
-        - Notification:
-            NotificationType: ACTUAL
-            ComparisonOperator: GREATER_THAN
-            Threshold: 80
-            ThresholdType: PERCENTAGE
-          Subscribers:
-            - SubscriptionType: EMAIL
-              Address: !Ref BudgetEmail
-        - Notification:
-            NotificationType: FORECASTED
-            ComparisonOperator: GREATER_THAN
-            Threshold: 100
-            ThresholdType: PERCENTAGE
-          Subscribers:
-            - SubscriptionType: EMAIL
-              Address: !Ref BudgetEmail
-
 Outputs:
+  CapacityMode:
+    Description: Selected Lambda capacity policy; shared-demo has no per-function reservation.
+    Value: !Ref CapacityMode
   FrontendOrigin:
     Description: Public CORS origin used by the API and upload bucket.
     Value: !Ref FrontendOrigin

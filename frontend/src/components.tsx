@@ -53,12 +53,23 @@ export function SourceDrawer({ source, close, snapshotId }: { source: SourceRef;
 export function JobsPanel({ jobs, run, busy = false }: { jobs: Job[]; run?: () => void; busy?: boolean }) {
   const [currentJobs, setCurrentJobs] = useState(jobs)
   const [pollError, setPollError] = useState('')
-  useEffect(() => { setCurrentJobs(jobs) }, [jobs])
+  const jobsRevision = useRef(0)
+  useEffect(() => { jobsRevision.current++; setCurrentJobs(jobs) }, [jobs])
   const running = currentJobs.some(job => ['queued', 'running'].includes(job.status))
   useEffect(() => {
     if (!running) return
     let active = true
-    const timer = setInterval(() => { api<Job[]>('/jobs').then(value => { if (active) { setCurrentJobs(value); setPollError('') } }).catch(e => { if (active) setPollError(e.message) }) }, 3000)
+    let inFlight = false
+    const timer = setInterval(() => {
+      if (inFlight) return
+      inFlight = true
+      const requestedRevision = jobsRevision.current
+      api<Job[]>('/jobs').then(value => {
+        // Parent refreshes can contain a new run that this older poll did not see.
+        if (active && requestedRevision === jobsRevision.current) { setCurrentJobs(value); setPollError('') }
+      }).catch(e => { if (active && requestedRevision === jobsRevision.current) setPollError(e.message) })
+        .finally(() => { inFlight = false })
+    }, 3000)
     return () => { active = false; clearInterval(timer) }
   }, [running])
   return <section className="panel job-panel"><SectionHeading title="Agent activity" detail="Persisted runs and the tools they used." action={run && <button type="button" className="button secondary small" disabled={busy} onClick={run}><RefreshCw size={14} className={busy ? 'spin' : ''} />Run review</button>} />

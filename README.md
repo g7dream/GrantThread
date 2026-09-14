@@ -8,7 +8,7 @@ GrantThread records expenses once, keeps proposed allocations separate from conf
 
 The local P0 workflow is implemented and has been exercised from import through funder acknowledgement. It includes a React/TypeScript interface, persistent Python API, exact financial calculations, source review, PDF/manifest exports, server-issued local demo sessions and scoped funder views. The repository also includes a real Strands/Bedrock worker and AWS SAM infrastructure.
 
-**AWS/Cognito/SQS deployment and a genuine Bedrock run are not verified.** The interface reports the missing model connection as unavailable; it does not substitute simulated agent output. Worker checks use explicitly labelled offline provider fixtures with the real Strands SDK. The cPanel package remains a static preview until its authenticated backend is configured and deployed verification is recorded.
+**14 September 2026: deployed backend, hosted grantee sign-in/reload and financial XLSX readback verified; final release checks remain.** The `grantthread-demo` stack is deployed in `eu-north-1`. A real Nova Lite reconciliation made four model calls and eight successful tool calls, then correctly reached `waiting_input` for missing printing proof and human allocation review. Forty-nine cloud backend checks passed through administrative Lambda invocation with trusted gateway claims; these do not verify API Gateway JWT validation or browser access. Real Cognito sign-in, normal reload, financial display and downloaded XLSX values pass. The final raw/gzip/Brotli checks match the built files, and the canonical browser loads the current bundle after the hosting cache repair. A fresh portfolio-wide browser job made nine model calls/eight tool calls (seven successes, one rejected evidence reference), exhausted its tool budget and saved no draft; this is distinct from the earlier grant-scoped run. Hosted sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified. Repeated judge demonstrations remain open. See [the evaluation record](docs/EVALUATION.md) for exact evidence and remaining gates.
 
 See [task progress](PROGRESS.md), [evaluation evidence](docs/EVALUATION.md) and [architecture](docs/ARCHITECTURE.md).
 
@@ -73,20 +73,22 @@ npm.cmd --prefix frontend run build
 .\.venv\Scripts\python.exe scripts/benchmark_local.py
 ```
 
-The targeted checks cover money, currency, concurrent/stale actions, tenant scope, upload bounds, source versions, batch atomicity, shared projections, PDF text, clarification lifecycle, queue fencing, tool budgets and model timeout. The scripted benchmark runs three isolated **local service-layer** journeys; it excludes human review and does not establish time savings. It is separate from the still-required three deployed demonstration runs.
+The latest completed local suites passed **244 tests: 169 backend, 50 release/build-script and 25 frontend API tests**, plus the production frontend build. The targeted checks cover money, currency, concurrent/stale actions, tenant scope, upload bounds, source versions, batch atomicity, shared projections, PDF text, clarification lifecycle, queue fencing, tool budgets and model timeout. The scripted benchmark runs three isolated **local service-layer** journeys; it excludes human review and does not establish time savings. It is separate from the still-required three deployed demonstration runs.
 
 ## AWS and cPanel
 
-The confirmed destination is [timeillusion.com/grantthread/](https://timeillusion.com/grantthread/). Account selection is paused; no AWS deployment is verified. Follow [the site setup record](docs/TIMEILLUSION_SETUP.md), [AWS first steps](docs/AWS_FIRST_STEPS.md), [infrastructure setup](infra/README.md) and [deployment instructions](docs/DEPLOYMENT.md). Keep uploads inside the dedicated lowercase `/grantthread/` folder.
+The configured destination is [timeillusion.com/grantthread/](https://timeillusion.com/grantthread/). The application stack, separate USD 25 budget alerts and genuine regional Nova Lite Strands reconciliation are verified. The CORS repairs are deployed and the hosted grantee login, reload and XLSX download pass. Hosted sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified. Repeated judge demonstrations remain open. The owner selected `CapacityMode=shared-demo` for the current concurrency quota of 10. Follow [the site setup record](docs/TIMEILLUSION_SETUP.md), [AWS first steps](docs/AWS_FIRST_STEPS.md), [infrastructure setup](infra/README.md) and [deployment instructions](docs/DEPLOYMENT.md). Keep uploads inside the dedicated lowercase `/grantthread/` folder.
 
 AWS SAM defines Cognito code+PKCE login, JWT-authorised API Gateway, Python Lambda, private S3, DynamoDB and SQS. A configured **regional** Bedrock model is mandatory; no silent cross-region fallback exists. Server-managed membership determines authority. Only a user-authorised deterministic endpoint changes canonical allocations or publishes a snapshot. The seven model tools cannot publish, pay, email, execute SQL or access a shell.
 
-AWS builds must use the private-data-excluding runtime stage:
+The selected build route produces a Linux Python 3.12 x86_64 ZIP from pinned binary wheels and the private-data-excluding runtime stage. The first command downloads wheels from PyPI; subsequent builds can use its returned cache entirely offline. Run each command only after the preceding one succeeds:
 
 ```powershell
-$stage = .\.venv\Scripts\python.exe scripts/stage_sam.py | ConvertFrom-Json
-sam build --use-container --template-file $stage.template
+$download = .\.venv\Scripts\python.exe scripts/build_lambda.py --download | ConvertFrom-Json
+$release = .\.venv\Scripts\python.exe scripts/build_lambda.py --wheelhouse $download.wheelhouse | ConvertFrom-Json
 ```
+
+The output identifies the ZIP, SHA-256, build manifest and staged source template. This follows [AWS's Linux-wheel packaging approach](https://docs.aws.amazon.com/lambda/latest/dg/python-package.html#python-package-native-libraries); archive checks do not prove Linux runtime imports or a working application. The deployment guide covers the separate budget stack, immutable private S3 code object, both `CodeUri` substitutions and review of CloudFormation's server-side SAM change set. SAM CLI with Docker remains an optional standard build route.
 
 After saving actual stack outputs, `scripts/configure_frontend.py --outputs FILE --site-url https://timeillusion.com/grantthread/` produces reviewed public environment settings. Install those settings as described in the deployment guide, then:
 

@@ -160,6 +160,24 @@ class Gates(unittest.TestCase):
         self.add_proof("SYNTHETIC revised proof with new source bytes, not a financial correction.")
         self.assertEqual(self.funder.shared_report(snapshot["id"])["report"], frozen)
 
+    def test_g2_recorded_receipts_preserve_shared_snapshot_and_private_notes(self):
+        from grantthread.finance_service import FinancialService
+        self.ready_report()
+        financials = FinancialService(IDENTITIES['brightpath'], self.repository, self.storage)
+        receipt = {'grantId': 'digital-belonging', 'sourceCurrency': 'RON', 'sourceAmount': '1000',
+                   'receivedDate': '2026-04-01', 'rate': '0.2', 'note': 'PRIVATE RECEIPT NOTE'}
+        financials.add_receipt(receipt)
+        report = self.grantee.assemble_report_draft('digital-belonging')
+        self.assertEqual(report['confirmedReceiptsMinor'], 20000)
+        snapshot = self.grantee.share_report(report['id'], {'expectedVersion': report['version'], 'attachmentIds': []})
+        frozen = copy.deepcopy(self.funder.shared_report(snapshot['id'])['report'])
+        self.assertNotIn('PRIVATE RECEIPT NOTE', json.dumps(frozen))
+        financials.add_receipt({**receipt, 'sourceAmount': '500'})
+        newer = self.grantee.assemble_report_draft('digital-belonging')
+        self.assertEqual(newer['confirmedReceiptsMinor'], 30000)
+        self.assertEqual(self.funder.shared_report(snapshot['id'])['report'], frozen)
+        self.assertEqual(self.repository.read('brightpath')['reports'][report['id']]['confirmedReceiptsMinor'], 20000)
+
     def test_g2_server_identity_not_client_role_and_scope(self):
         login = local_login(self.repository, "brightpath")
         self.assertEqual(local_identity(self.repository, "Bearer " + login["token"])["role"], "grantee")
@@ -256,14 +274,40 @@ class Gates(unittest.TestCase):
         self.assertEqual(self.funder.shared_report(first["id"])["attachments"], [])
 
     def test_g2_large_source_download_is_presigned_only_after_authorisation(self):
-        from grantthread.api import Redirect
-        with patch.object(self.storage, "presign_get", return_value="https://synthetic-bucket.example.test/scoped-download") as sign:
+        with patch.object(self.storage, "presign_get", return_value="https://synthetic-bucket.example.test/scoped-download") as sign, \
+             patch.object(self.storage, "get") as read_bytes:
             result = dispatch("GET", "/evidence/invoice-venue/download", {}, IDENTITIES["brightpath"], self.repository, self.storage)
-            self.assertIsInstance(result, Redirect)
+            self.assertEqual(result, {"downloadUrl": "https://synthetic-bucket.example.test/scoped-download",
+                                      "contentType": "text/plain", "filename": "Venue hire invoice.txt"})
             self.assertTrue(sign.call_args.args[0].startswith("brightpath/"))
             sign.reset_mock()
             self.deny(lambda: dispatch("GET", "/evidence/invoice-venue/download", {}, IDENTITIES["harbour"], self.repository, self.storage), "not_found")
             sign.assert_not_called()
+            read_bytes.assert_not_called()
+
+    def test_g2_shared_source_descriptor_requires_recipient_manifest_and_exact_version(self):
+        report = self.ready_report()
+        snapshot = self.grantee.share_report(report["id"], {"expectedVersion": report["version"],
+            "attachmentIds": ["invoice-venue"], "confirmOriginals": True})
+        path = f'/shared-reports/{snapshot["id"]}/attachments/invoice-venue'
+        original = dispatch("GET", path, {}, IDENTITIES["northstar"], self.repository, self.storage)
+        self.assertIsInstance(original, Binary)
+        self.assertIn(b"SYNTHETIC", original.data)
+        with patch.object(self.storage, "presign_get", return_value="https://synthetic-bucket.example.test/selected-source") as sign, \
+             patch.object(self.storage, "get") as read_bytes:
+            result = dispatch("GET", path, {}, IDENTITIES["northstar"], self.repository, self.storage)
+            self.assertEqual(result, {"downloadUrl": "https://synthetic-bucket.example.test/selected-source",
+                                      "contentType": original.content_type, "filename": original.name})
+            self.assertTrue(sign.call_args.args[0].startswith("brightpath/"))
+            sign.reset_mock()
+            self.deny(lambda: dispatch("GET", path, {}, IDENTITIES["harbour"], self.repository, self.storage), "not_found")
+            self.deny(lambda: dispatch("GET", path.replace("invoice-venue", "invoice-printing"), {}, IDENTITIES["northstar"], self.repository, self.storage), "not_found")
+            def replace_version(data):
+                data["evidence"]["invoice-venue"]["version"] += 1
+            self.repository.mutate("brightpath", replace_version)
+            self.deny(lambda: dispatch("GET", path, {}, IDENTITIES["northstar"], self.repository, self.storage), "source_unavailable")
+            sign.assert_not_called()
+            read_bytes.assert_not_called()
 
     def test_g2_bounded_upload_and_version_metadata(self):
         self.deny(lambda: self.grantee.upload_intent({"name": "scan.png", "size": 20, "grantIds": ["digital-belonging"], "kind": "invoice"}), "unsupported_type")

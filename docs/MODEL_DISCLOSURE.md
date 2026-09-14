@@ -1,15 +1,20 @@
 # Model, limits and claim disclosure
 
-GrantThread integrates the Strands Agents SDK with an Amazon Bedrock model provider. Offline tests exercise actual SDK dispatch with explicitly fictional, scripted provider responses. **No genuine Bedrock inference run or AWS/Cognito/SQS deployment is verified.** These tests do not establish model extraction quality, cloud operation or inference cost. The cPanel frontend package is a preview until an authenticated backend is configured and verified.
+GrantThread integrates the Strands Agents SDK with an Amazon Bedrock model provider. On **14 September 2026**, the deployed worker completed a genuine reconciliation execution through SQS and Bedrock, retaining eight successful tool events. Its correct final status was `waiting_input`: printing payment proof and a human decision on the venue allocation were still missing. Offline tests remain explicitly fictional, scripted provider tests and are separate from this live evidence. The hosted grantee Cognito sign-in, normal reload, persisted data and financial XLSX download now pass after the CORS repairs. A separate fresh portfolio-wide browser run reached its tool budget and produced no draft; its outcome is recorded below. Hosted sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified. Repeated judge demonstrations remain open.
 
 | Evidence field | Current record |
 | --- | --- |
-| Model ID and region used | Not recorded; requires actual configured run |
+| Model ID and region used | Regional `amazon.nova-lite-v1:0`, Stockholm `eu-north-1`; no cross-region fallback |
 | Strands/runtime versions tested | Strands 1.54.0; Python 3.12; installed dependencies locked in `backend/requirements.txt` |
-| Genuine completed job ID and tool events | Pending evidence |
-| Model runtime, token usage and cost | Unmeasured; local service timings in `BENCHMARK_RESULTS.json` exclude inference |
+| Genuine reconciliation execution | `job-f2ce0cb489044197`; `strands-bedrock`; four model calls, eight successful tool calls; final `waiting_input`, with an incomplete report draft saved |
+| Fresh browser-triggered execution | `job-c684f54d1e2c4114`, portfolio-wide, 15:13 UTC: nine model calls/eight tool calls, seven successes and one rejected missing-evidence reference; final `waiting_input` because tool budget was reached; no draft or proposal saved |
+| Runtime, token usage and cost | Worker start-to-finish 8.59 seconds for the earlier grant-scoped job and 11.95 seconds for the later budget-limited portfolio run; token usage and attributable cost not measured. This is not administrator completion time. |
 | Local verification and test counts | See [EVALUATION.md](EVALUATION.md) and [PROGRESS.md](../PROGRESS.md) |
 | User study | User validation pending |
+
+The retained live job is in ignored `artifacts/cloud-smoke-agent-20260914-175708-c48dda/genuine-job.json`. It called `list_requirements`, read five authorised evidence sources, checked readiness and assembled an incomplete report draft. Forty-nine backend checks (nine scope, six agent, 34 financial) used administrative Lambda invocation with trusted gateway claims and real cloud storage/queue/model services. They do not establish API Gateway validation of JWT signatures, OAuth session completion, CORS or browser behavior. Separate public HTTP checks returned health 200 and anonymous session 401. A direct Converse smoke test also passed; its 168 output tokens and 1.39-second measurement belong to that separate test, not the Strands job. See [EVALUATION.md](EVALUATION.md).
+
+The fresh run is retained under ignored `artifacts/hosted-browser-agent/`. Its eight tool events must not be conflated with the earlier run's eight successes. Displaying a saved prior draft during a fresh run does not mean that the fresh run created it. The observed budget stop demonstrates that genuine agent execution can end without a report; neither run proves reliable automatic completion. `artifacts/hosted-browser-verification.json` separately records actual hosted login/reload, receipt/rate display and XLSX values read back from the saved download.
 
 Reconciliation proposes evidence links and report work through seven scoped Strands tools. It allows at most eight tool calls, ten model turns, 1,200 output tokens per model call and 180 seconds per job. Canonical allocations and publication require explicit authorised API actions. Shared factual narratives use confirmed structured facts and deterministic templates; source text and model prose are not automatically adopted as factual narrative.
 

@@ -1,6 +1,6 @@
 # Agents for Humans: Measuring the workflow and testing its failure cases
 
-Draft for AWS Builder Center. Not published. Three local service-layer runs are measured below; human review, manual baseline, model time and administrator savings remain unmeasured.
+Draft for AWS Builder Center. Not published. Three local service-layer runs are measured below; human review, manual baseline and administrator savings remain unmeasured. A separate genuine Strands job has an 8.59-second worker execution measurement; it is not an administrator task time.
 
 GrantThread's demonstration can look smooth while still hiding work. A useful measurement has to include preparation, source checking, corrections, model waiting and the final review. Counting only the time spent generating a report would miss much of the administrator's task.
 
@@ -21,11 +21,11 @@ The executed benchmark instead used three isolated SQLite service-layer journeys
 | Repeated fields and decisions | Unmeasured |
 | Exact expense and allocation totals | Matched the fixture in all three local service runs |
 | Two report formats and resolved clarification | Produced in all three local service runs |
-| Access/versions/containment cases | Covered by the passing 28-test P0 backend/worker baseline; current suite adds 11 separate calculator tests |
+| Access/versions/containment cases | Covered by the current 244 local tests; 49 additional cloud application checks use administrative Lambda invocation with trusted claims |
 | Three complete deployed journeys | Pending; the three recorded runs are local service execution only |
 
 The label is “scripted synthetic benchmark; user validation pending.” Separately, the local browser completed the import-to-clarification journey and the report download. A 390-pixel viewport check exposed horizontal overflow, which was fixed and remeasured; keyboard Escape restored focus to the mobile navigation trigger. An actual screen-reader session was not performed.
 
 These observations support the reproducibility of this local workflow, not broad productivity gains or production safety. The next measurement must include people doing the full task. The service-runtime numbers should never be presented as administrator completion times or a savings percentage.
 
-**Before publication:** add the frozen release revision, screenshots or redacted test artifacts, actual AWS/model observations and the public release link. Local details and timing scope are recorded in `docs/EVALUATION.md` and `docs/BENCHMARK_RESULTS.json`. The hosted deployment and genuine agent demonstration are still pending.
+**Before publication:** add the frozen release revision, screenshots or redacted test artifacts, actual AWS/model observations and the public release link. Local details and timing scope are recorded in `docs/EVALUATION.md` and `docs/BENCHMARK_RESULTS.json`. The backend deployment and genuine regional Strands reconciliation are verified. Actual hosted grantee sign-in/reload and XLSX readback pass. A second portfolio-wide browser run hit its budget after nine model calls/eight tools, rejected one missing-evidence reference and saved no draft; this distinct outcome belongs in the evaluation. Hosted sharing and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified, and no complete repeated judge workflow or productivity benefit is claimed.

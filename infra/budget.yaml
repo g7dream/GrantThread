@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: GrantThread account-wide usage cost alerts - deploy this separate stack in us-east-1 before the application.
+
+Parameters:
+  BudgetName:
+    Type: String
+    Default: grantthread-demo-monthly
+    AllowedPattern: '^[a-zA-Z0-9][a-zA-Z0-9-]{0,99}$'
+  BudgetEmail:
+    Type: String
+    Description: Operational recipient supplied privately; never include it in frontend configuration.
+    AllowedPattern: '^[^ @]+@[^ @]+\.[^ @]+$'
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 25
+    MinValue: 1
+    MaxValue: 100
+
+Resources:
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Ref BudgetName
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        CostTypes:
+          IncludeCredit: false
+          IncludeRefund: false
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetEmail
+
+Outputs:
+  BudgetName:
+    Description: Account-wide monthly budget; credits and refunds do not offset measured costs.
+    Value: !Ref BudgetName
