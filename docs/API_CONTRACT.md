@@ -5,6 +5,8 @@ JSON API uses camelCase keys, integer minor units and ISO date-only strings. Err
 `GET /health` -> `{status, mode, agentConfigured}`; `GET /session` -> `{user:{id,name,role,organisationId,organisationName},mode}`. Local-only `POST /demo/login {identity:"brightpath"|"harbour"|"northstar"}` -> `{token,user}`. `POST /demo/reset {confirm:true}` clears this local synthetic dataset and sessions except current session. Cloud reset via operator script only.
 
 `GET /portfolio` -> `{organisation, grants:Grant[], decisions:Proposal[], totals:{currency,awardMinor,allocatedMinor,expenseMinor,uniqueActivities}, requirements:Requirement[], jobs:Job[]}`.
+
+`GET /activity` is grantee-only and returns `{events,total,truncated,limit:200}`. Events are the most recent 200 recorded organisation actions, newest first: `{sequence,at,action,targetId,actorId,actorName?}`. Sequence is the one-based position in the recorded history. Actor names are included only when recorded at the action time; old identities are not reconstructed. `GET /activity/csv` exports the entire recorded history oldest first as UTF-8 BOM CSV, with spreadsheet-formula escaping. These endpoints are read-only, organisation-scoped and unavailable to funders. The log does not claim to capture every action or sign-in.
 Grant `{id,name,funderName,funderOrgId,granteeOrgId,currency,awardMinor,allocatedMinor,fundingMode,deadline,template,version,readiness:{evidenced,total,ready,missing:string[]}}`.
 `GET /grants` -> Grant[]; `GET /grants/:id` -> `{grant,requirements,expenses,activities,evidence,reports}`.
 
@@ -19,6 +21,8 @@ Grant `{id,name,funderName,funderOrgId,granteeOrgId,currency,awardMinor,allocate
 `POST /proposals/batch-apply {proposals:[{id,expectedVersion}]}` atomically applies up to 20 evidence connections against the same current input version. Stale members abort the whole batch. GET projections mark pending proposals/drafts stale after input changes. Evidence uploads, CSV commits and authorised approvals schedule a new reconciliation when configured; unavailability stays explicit.
 
 CSV preview rows include separate `expenseAmountMinor` and `allocationMinor`, along with expense facts, `grantId` and row number. Cloud source-download endpoints return an authorised 302 to an expiring private S3 GET URL; local mode returns bytes. This avoids Lambda response limits for 5 MB sources.
+
+Lambda-generated binary responses are limited to 4 MiB before base64 encoding. Larger exports return HTTP 413 with code `export_too_large`; malformed base64 request bodies return HTTP 400. A single financial-entry confirmation route refuses an ID in the request body that differs from its path ID.
 
 `GET /jobs` -> Job[]; `POST /jobs {grantId?:string}` -> Job; `GET /jobs/:id` -> Job. Job `{id,status,engine:"strands-bedrock",createdAt,finishedAt?,message,toolEvents:[{name,at,result}],inputVersion,actorId,organisationId}`. No model configured means `unavailable`, not success.
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AlertCircle, ArrowUpRight, Check, ChevronRight, Download, FileText, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import { api, download } from './api'
@@ -16,31 +16,32 @@ export function Empty({ title, children }: { title: string; children: ReactNode 
 export function PageHeading({ eyebrow, title, children, action }: { eyebrow: string; title: string; children: ReactNode; action?: ReactNode }) { return <header className="page-heading"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{children}</p></div>{action && <div className="heading-action">{action}</div>}</header> }
 export function SectionHeading({ title, detail, action }: { title: string; detail?: string; action?: ReactNode }) { return <div className="section-heading"><div><h2>{title}</h2>{detail && <p>{detail}</p>}</div>{action}</div> }
 export function useResource<T>(path: string, revision = 0) {
-  const [data, setData] = useState<T | null>(null)
+  const [result, setResult] = useState<{ path: string; data: T } | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [retry, setRetry] = useState(0)
   useEffect(() => {
-    if (!path) { setLoading(false); return }
+    if (!path) { setLoading(false); setError(''); return }
     let active = true
     setLoading(true); setError('')
-    api<T>(path).then(value => { if (active) setData(value) }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    api<T>(path).then(value => { if (active) setResult({ path, data: value }) }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [path, revision, retry])
-  return { data, error, loading, reload: () => setRetry(n => n + 1) }
+  return { data: result?.path === path ? result.data : null, error, loading, reload: () => setRetry(n => n + 1) }
 }
-export function ResourceError({ error, retry }: { error: string; retry: () => void }) { return <div><Notice>{error}</Notice><button className="button secondary" onClick={retry}><RefreshCw size={16} />Try again</button></div> }
+export function ResourceError({ error, retry }: { error: string; retry: () => void }) { return <div><Notice>{error}</Notice><button type="button" className="button secondary" onClick={retry}><RefreshCw size={16} />Try again</button></div> }
 export function Modal({ title, children, close, className = '' }: { title: string; children: ReactNode; close: () => void; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close() }, [])
-  return <dialog ref={ref} className={`modal ${className}`} onCancel={close} onClick={e => { if (e.target === e.currentTarget) close() }}><div className="modal-header"><h2>{title}</h2><button className="icon-button" aria-label="Close dialog" onClick={close}><X size={20} /></button></div>{children}</dialog>
+  return <dialog ref={ref} aria-labelledby={titleId} className={`modal ${className}`} onCancel={event => { event.preventDefault(); close() }} onClick={e => { if (e.target === e.currentTarget) close() }}><div className="modal-header"><h2 id={titleId}>{title}</h2><button type="button" className="icon-button" aria-label="Close dialog" onClick={close}><X size={20} /></button></div>{children}</dialog>
 }
 export function DownloadButton({ path, name, children, className = 'secondary' }: { path: string; name: string; children: ReactNode; className?: string }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState('')
   async function run() { setBusy(true); setError(''); try { await download(path, name) } catch (e) { setError((e as Error).message) } finally { setBusy(false) } }
-  return <span className="download-wrap"><button className={`button ${className}`} disabled={busy} onClick={run}>{busy ? <LoaderCircle size={16} className="spin" /> : <Download size={16} />}{children}</button>{error && <span role="alert" className="inline-error">{error}</span>}</span>
+  return <span className="download-wrap"><button type="button" className={`button ${className}`} disabled={busy} onClick={run}>{busy ? <LoaderCircle size={16} className="spin" /> : <Download size={16} />}{children}</button>{error && <span role="alert" className="inline-error">{error}</span>}</span>
 }
-export function SourceButton({ source, onOpen, children }: { source: SourceRef; onOpen: (source: SourceRef) => void; children?: ReactNode }) { return <button className="source-button" onClick={() => onOpen(source)}><FileText size={14} />{children || `Source · v${source.version} · p${source.page}`}<ArrowUpRight size={13} /></button> }
+export function SourceButton({ source, onOpen, children }: { source: SourceRef; onOpen: (source: SourceRef) => void; children?: ReactNode }) { return <button type="button" className="source-button" onClick={() => onOpen(source)}><FileText size={14} />{children || `Source · v${source.version} · p${source.page}`}<ArrowUpRight size={13} /></button> }
 export function SourceDrawer({ source, close, snapshotId }: { source: SourceRef; close: () => void; snapshotId?: string }) {
   const { data, error, loading } = useResource<Evidence>(snapshotId ? '' : `/evidence/${source.evidenceId}`)
   const page = data?.pages?.[source.page - 1]
@@ -60,7 +61,7 @@ export function JobsPanel({ jobs, run, busy = false }: { jobs: Job[]; run?: () =
     const timer = setInterval(() => { api<Job[]>('/jobs').then(value => { if (active) { setCurrentJobs(value); setPollError('') } }).catch(e => { if (active) setPollError(e.message) }) }, 3000)
     return () => { active = false; clearInterval(timer) }
   }, [running])
-  return <section className="panel job-panel"><SectionHeading title="Agent activity" detail="Persisted runs and the tools they used." action={run && <button className="button secondary small" disabled={busy} onClick={run}><RefreshCw size={14} className={busy ? 'spin' : ''} />Run review</button>} />
+  return <section className="panel job-panel"><SectionHeading title="Agent activity" detail="Persisted runs and the tools they used." action={run && <button type="button" className="button secondary small" disabled={busy} onClick={run}><RefreshCw size={14} className={busy ? 'spin' : ''} />Run review</button>} />
     {pollError && <Notice>{pollError}</Notice>}{!currentJobs.length ? <p className="muted">No agent runs yet. Import evidence or start a review to create one.</p> : [...currentJobs].reverse().slice(0, 5).map(job => <details className="job" key={job.id}><summary><span className="job-title"><span className={`status-dot ${job.status}`} /><strong>{job.status === 'unavailable' ? 'Agent unavailable' : job.kind === 'bank_statement' ? 'Bank statement review' : 'Portfolio reconciliation'}</strong></span><Status value={job.status} /><ChevronRight size={16} /></summary><div className="job-content"><p>{job.message || 'Waiting for the worker to process this job.'}</p><p className="tiny muted">{job.engine} · {dateTime(job.createdAt)} Bucharest{job.finishedAt ? ` · finished ${dateTime(job.finishedAt)}` : ""} · input version {job.inputVersion}</p>{job.toolEvents?.length ? <ol className="tool-events">{job.toolEvents.map((event, i) => <li key={i}><strong>{event.name}</strong><span className="tiny muted"> · {dateTime(event.at)}</span><pre>{typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2)}</pre></li>)}</ol> : <p className="muted tiny">No completed tool calls recorded.</p>}</div></details>)}
   </section>
 }

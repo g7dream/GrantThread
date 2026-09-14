@@ -6,6 +6,7 @@ from decimal import Decimal, ROUND_HALF_UP, localcontext
 from .errors import require
 
 CURRENCIES = ('EUR', 'RON', 'CAD', 'USD', 'GBP', 'CHF', 'AUD', 'NZD')
+MAX_AMOUNT_MINOR = 999_999_999_999
 CATEGORIES = ('1.1 Remuneration', '1.2 Subcontractor Fees', '1.3 Travel Costs',
               '1.4 Goods and Supplies', '1.5 Equipment Costs', '1.6 Project Administration Costs',
               '1.7 Sub-Grants less Sub-Grantee Indirects', '1.8 Indirect Costs', 'Uncategorised')
@@ -38,7 +39,7 @@ def amount_text(minor):
 def normalize_rate(value, direction='report_per_source'):
     require(isinstance(value, str) and re.fullmatch(r'(?:0|[1-9]\d{0,5})(?:\.\d{1,18})?', value.strip()),
             'Enter a positive exchange rate with up to 18 decimal places')
-    require(direction in {'report_per_source', 'source_per_report'}, 'Choose the exchange-rate direction')
+    require(isinstance(direction, str) and direction in {'report_per_source', 'source_per_report'}, 'Choose the exchange-rate direction')
     rate = Decimal(value.strip())
     require(Decimal('0.000001') <= rate <= Decimal('100000'), 'Exchange rate must be between 0.000001 and 100000')
     with localcontext() as ctx:
@@ -53,7 +54,7 @@ def convert_minor(amount, rate):
     with localcontext() as ctx:
         ctx.prec = 40
         result = int((Decimal(amount) * Decimal(rate)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
-    require(abs(result) <= 999_999_999_999, 'Converted amount exceeds the supported limit')
+    require(abs(result) <= MAX_AMOUNT_MINOR, 'Converted amount exceeds the supported limit')
     return result
 
 

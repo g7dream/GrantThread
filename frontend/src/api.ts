@@ -8,22 +8,42 @@ export class ApiError extends Error {
 export function token() { return sessionStorage.getItem(TOKEN_KEY) }
 export function setToken(value: string | null) { if (value) sessionStorage.setItem(TOKEN_KEY, value); else sessionStorage.removeItem(TOKEN_KEY) }
 export function apiUrl(path: string) { return `${API_BASE}${path}` }
-async function request(path: string, options: RequestInit = {}) {
-  const response = await fetch(apiUrl(path), { ...options, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(token() ? { Authorization: `Bearer ${token()}` } : {}), ...options.headers } })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    if (response.status === 401 && path !== '/demo/login') window.dispatchEvent(new Event('grantthread:unauthorized'))
-    throw new ApiError(typeof body.error === 'string' ? body.error : typeof body.detail === 'string' ? body.detail : `Request failed (${response.status}). Please try again.`, response.status, body.code)
+async function request<T>(path: string, options: RequestInit, read: (response: Response) => Promise<T>) {
+  // Bound read requests without automatically retrying financial writes.
+  const controller = new AbortController()
+  let timedOut = false
+  const timeout = options.method && options.method !== 'GET' ? undefined : window.setTimeout(() => { timedOut = true; controller.abort() }, 20000)
+  const cancel = () => controller.abort(options.signal?.reason)
+  if (options.signal?.aborted) cancel()
+  else options.signal?.addEventListener('abort', cancel, { once: true })
+  try {
+    const response = await fetch(apiUrl(path), { ...options, signal: controller.signal, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(token() ? { Authorization: `Bearer ${token()}` } : {}), ...options.headers } })
+    if (!response.ok) {
+      if (response.status === 401 && path !== '/demo/login') window.dispatchEvent(new Event('grantthread:unauthorized'))
+      const payload = await response.json().catch(error => { if (controller.signal.aborted) throw error; return {} })
+      const body = payload && typeof payload === 'object' ? payload : {}
+      throw new ApiError(typeof body.error === 'string' ? body.error : typeof body.detail === 'string' ? body.detail : `Request failed (${response.status}). Please try again.`, response.status, body.code)
+    }
+    // Keep the deadline active until JSON or download bytes finish arriving.
+    return await read(response)
+  } catch (error) {
+    if (timedOut) throw new ApiError('The workspace server took too long to respond. Check your connection and try again.', 0, 'timeout')
+    if (error instanceof TypeError) throw new ApiError(options.method && options.method !== 'GET' ? 'The server connection was interrupted. Check whether your change was saved before trying again.' : 'The workspace server could not be reached. Check your connection and try again.', 0, 'network')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+    options.signal?.removeEventListener('abort', cancel)
   }
-  return response
 }
 export async function api<T>(path: string, body?: unknown): Promise<T> {
-  const response = await request(path, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
-  return response.status === 204 ? undefined as T : response.json()
+  return request(path, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }, async response => {
+    if (response.status === 204) return undefined as T
+    if (!response.headers.get('Content-Type')?.toLowerCase().includes('application/json')) throw new ApiError('The workspace server returned a web page instead of data. Its API connection needs to be checked.', response.status, 'invalid_response')
+    return response.json()
+  })
 }
 export async function download(path: string, name: string) {
-  const response = await request(path)
-  const blob = await response.blob()
+  const blob = await request(path, {}, response => response.blob())
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url; link.download = name; link.click()

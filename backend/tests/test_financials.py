@@ -224,6 +224,42 @@ class Financials(unittest.TestCase):
         self.assertEqual(self.service.financial_report(self.grant['id'])['totalMinor'], 0)
         self.assertEqual(calculate(self.repo.read('brightpath'), self.grant['id'])['allocatedMinor'], 0)
 
+    def test_confirming_adjustment_invalidates_other_previews_for_same_expense(self):
+        original = self.confirm(self.draft(amount='0.03', manualRate='0.5'))
+        adjustments = [self.service.adjust_entry(original['id'], {'expectedVersion': original['version'],
+            'amount': '-0.01', 'reason': 'Fictional correction'}) for _ in range(2)]
+        self.assertEqual([entry['reportAmountMinor'] for entry in adjustments], [-1, -1])
+        self.confirm(adjustments[0])
+        self.deny(lambda: self.confirm(adjustments[1]), 'stale')
+        refreshed = next(entry for entry in self.service.overview()['entries'] if entry['id'] == adjustments[1]['id'])
+        self.assertEqual(refreshed['reportAmountMinor'], 0)
+        self.assertEqual(self.confirm(refreshed)['reportAmountMinor'], 0)
+
+    def test_batch_cannot_silently_reprice_two_adjustments_of_same_expense(self):
+        original = self.confirm(self.draft(amount='0.03', manualRate='0.5'))
+        adjustments = [self.service.adjust_entry(original['id'], {'expectedVersion': original['version'],
+            'amount': '-0.01', 'reason': 'Fictional correction'}) for _ in range(2)]
+        before = copy.deepcopy(self.repo.read('brightpath'))
+        self.deny(lambda: self.service.confirm_entries({'entries': [
+            {'id': entry['id'], 'expectedVersion': entry['version']} for entry in adjustments]}), 'conflict')
+        self.assertEqual(self.repo.read('brightpath'), before)
+
+    def test_independent_adjustments_can_still_be_confirmed_together(self):
+        originals = [self.confirm(self.draft(amount='0.03', manualRate='0.5', reference=f'INDEPENDENT-{index}')) for index in range(2)]
+        adjustments = [self.service.adjust_entry(original['id'], {'expectedVersion': original['version'],
+            'amount': '-0.01', 'reason': 'Fictional independent correction'}) for original in originals]
+        confirmed = self.service.confirm_entries({'entries': [
+            {'id': entry['id'], 'expectedVersion': entry['version']} for entry in adjustments]})
+        self.assertEqual([entry['reportAmountMinor'] for entry in confirmed['entries']], [-1, -1])
+        self.assertEqual(self.service.financial_report(self.grant['id'])['totalMinor'], 2)
+
+    def test_adjustment_cannot_exceed_supported_native_amount(self):
+        original = self.confirm(self.draft(amount='9999999999.99', manualRate='0.000001'))
+        adjustment = self.service.adjust_entry(original['id'], {'expectedVersion': original['version'],
+            'amount': '0.01', 'reason': 'Fictional amount outside supported bounds'})
+        self.assertIsNone(adjustment['reportAmountMinor'])
+        self.deny(lambda: self.confirm(adjustment))
+
     def test_bank_match_preserves_existing_fx_and_does_not_duplicate_expense(self):
         original = self.confirm(self.draft())
         item = self.bank_import()
@@ -248,6 +284,102 @@ class Financials(unittest.TestCase):
                'category': '1.4 Goods and Supplies', 'conversionMode': 'manual', 'manualRate': '0.3'})
         self.deny(lambda: self.confirm(entry))
         self.assertEqual(self.service.financial_report(self.grant['id'])['totalMinor'], 0)
+
+    def test_ledger_credit_direction_is_preserved_through_review(self):
+        from openpyxl import Workbook
+        book = Workbook()
+        book.active.append(['Date', 'Description', 'Reference', 'Amount', 'Direction', 'Currency', 'Category', 'Rate'])
+        book.active.append(['2026-04-20', 'Fictional refund', 'LEDGER-CREDIT-1', 100, 'credit', 'RON', '1.4 Goods and Supplies', .3])
+        raw = io.BytesIO()
+        book.save(raw)
+        item = self.service.upload_import({'name': 'credit-ledger.xlsx', 'kind': 'ledger', 'grantId': self.grant['id'],
+            'contentBase64': base64.b64encode(raw.getvalue()).decode()})
+        self.assertEqual(item['rows'][0]['amount'], '-100.00')
+        imported = self.service.commit_import(item['id'], {'expectedVersion': item['version']})
+        entry = next(entry for entry in self.service.overview()['entries'] if entry['id'] == imported['entryIds'][0])
+        self.assertEqual(entry['kind'], 'unclassified')
+        changed = self.service.update_entry(entry['id'], {'expectedVersion': entry['version'], 'kind': 'expense'})
+        self.deny(lambda: self.confirm(changed))
+        refund = self.service.update_entry(changed['id'], {'expectedVersion': changed['version'], 'kind': 'refund'})
+        self.confirm(refund)
+        self.assertEqual(self.service.financial_report(self.grant['id'])['totalMinor'], 0)
+
+    def test_signed_ledger_refund_cannot_lose_source_direction_during_edit(self):
+        from openpyxl import Workbook
+        book = Workbook()
+        book.active.append(['Date', 'Description', 'Reference', 'Amount', 'Currency', 'Category', 'Rate'])
+        book.active.append(['2026-04-20', 'Fictional negative invoice', 'SIGNED-REFUND-1', -20, 'RON', '1.4 Goods and Supplies', .3])
+        raw = io.BytesIO()
+        book.save(raw)
+        item = self.service.upload_import({'name': 'signed-refund.xlsx', 'kind': 'ledger', 'grantId': self.grant['id'],
+            'contentBase64': base64.b64encode(raw.getvalue()).decode()})
+        imported = self.service.commit_import(item['id'], {'expectedVersion': item['version']})
+        changed = self.service.update_entry(imported['entryIds'][0], {'expectedVersion': 1,
+            'kind': 'expense', 'sourceDirection': 'debit', 'amount': '25'})
+        self.assertEqual(changed['sourceDirection'], 'credit')
+        self.deny(lambda: self.confirm(changed))
+        self.assertEqual(self.service.financial_report(self.grant['id'])['totalMinor'], 0)
+
+    def test_legacy_imported_credit_drafts_use_immutable_source_direction(self):
+        from openpyxl import Workbook
+        for explicit_direction in (False, True):
+            with self.subTest(explicit_direction=explicit_direction):
+                book = Workbook()
+                book.active.append(['Date', 'Description', 'Reference', 'Amount', 'Currency', 'Category', 'Rate']
+                                   + (['Direction'] if explicit_direction else []))
+                book.active.append(['2026-04-20', 'Fictional legacy credit', f'LEGACY-CREDIT-{explicit_direction}',
+                    100 if explicit_direction else -100, 'RON', '1.4 Goods and Supplies', .3]
+                    + (['credit'] if explicit_direction else []))
+                raw = io.BytesIO()
+                book.save(raw)
+                item = self.service.upload_import({'name': 'legacy-credit.xlsx', 'kind': 'ledger', 'grantId': self.grant['id'],
+                    'contentBase64': base64.b64encode(raw.getvalue()).decode()})
+                imported = self.service.commit_import(item['id'], {'expectedVersion': item['version']})
+                entry_id = imported['entryIds'][0]
+                def legacy_record(data):
+                    entry = data['financeEntries'][entry_id]
+                    entry.pop('sourceDirection')
+                    entry['kind'] = 'expense'
+                    if explicit_direction:
+                        # The previous parser discarded Direction and left a positive cached row.
+                        data['financeImports'][item['id']]['rows'][0]['amount'] = '100.00'
+                self.repo.mutate('brightpath', legacy_record)
+                entry = next(entry for entry in self.service.overview()['entries'] if entry['id'] == entry_id)
+                self.deny(lambda: self.confirm(entry))
+                self.assertEqual(self.service.financial_report(self.grant['id'])['totalMinor'], 0)
+                if explicit_direction:
+                    source = self.repo.read('brightpath')['financeImports'][item['id']]
+                    self.storage.put(source['objectKey'], b'Fictional corrupted original', source['contentType'])
+                    self.deny(lambda: self.confirm(entry), 'source_unavailable')
+
+    def test_legacy_debit_draft_keeps_reviewed_edits_and_can_be_confirmed(self):
+        raw = self.workbook()
+        item = self.service.upload_import({'name': 'legacy-debit.xlsx', 'kind': 'ledger', 'grantId': self.grant['id'],
+            'contentBase64': base64.b64encode(raw).decode()})
+        imported = self.service.commit_import(item['id'], {'expectedVersion': item['version']})
+        entry_id = imported['entryIds'][0]
+        self.repo.mutate('brightpath', lambda data: data['financeEntries'][entry_id].pop('sourceDirection'))
+        edited = self.service.update_entry(entry_id, {'expectedVersion': 1, 'amount': '110'})
+        self.assertEqual(self.confirm(edited)['sourceAmountMinor'], 11000)
+
+    def test_ledger_upload_honours_and_preserves_explicit_decimal_separator(self):
+        from openpyxl import Workbook
+        book = Workbook()
+        book.active.append(['Date', 'Description', 'Amount', 'Currency', 'Category', 'Rate'])
+        book.active.append(['2026-04-20', 'Fictional grouped amount', '1.234', 'RON', '1.4 Goods and Supplies', .3])
+        raw = io.BytesIO()
+        book.save(raw)
+        item = self.service.upload_import({'name': 'grouped-ledger.xlsx', 'kind': 'ledger', 'grantId': self.grant['id'],
+            'contentBase64': base64.b64encode(raw.getvalue()).decode(), 'decimalSeparator': ','})
+        self.assertEqual(item['status'], 'preview')
+        self.assertEqual(item['rows'][0]['amount'], '1234.00')
+        self.assertEqual(item['decimalSeparator'], ',')
+
+    def test_one_template_rate_requires_one_source_currency_pair(self):
+        self.confirm(self.draft(reference='PAIR-RON'))
+        self.confirm(self.draft(currency='USD', reference='PAIR-USD'))
+        report = self.service.financial_report(self.grant['id'])
+        self.assertIsNone(report['rate'])
 
     def test_overlapping_bank_sources_cannot_reclassify_an_existing_payment(self):
         original = self.confirm(self.draft())
@@ -296,6 +428,9 @@ class Financials(unittest.TestCase):
     def test_malformed_financial_choices_are_domain_errors(self):
         self.deny(lambda: self.draft(kind=[]))
         self.deny(lambda: self.draft(conversionMode={}))
+        self.deny(lambda: self.receipt(rateDirection=[]))
+        self.deny(lambda: self.draft(conversionMode='receipt', receiptId=[]))
+        self.deny(lambda: self.draft(kind='payment_match', matchExpenseId={}))
 
     def test_funder_cannot_access_financial_routes(self):
         for method, path, body in [('GET', '/financials', {}), ('POST', '/financials/grants', {}), ('GET', '/financials/report/' + self.grant['id'], {})]:

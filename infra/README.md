@@ -4,11 +4,11 @@ This template is a prepared deployment artifact. A successful local build does n
 
 ## First-time setup
 
-1. Sign in to an AWS account and configure a short-lived AWS CLI/SSO operator profile locally. Do not paste access keys into source, browser configuration or chat. Run `aws sts get-caller-identity` and confirm the account. Install AWS SAM CLI and Docker for a Linux-compatible build. Python 3.12 is the deployed runtime.
+1. Sign in to the owner-selected AWS account and configure a short-lived AWS CLI/SSO operator profile locally. The current deployment remains paused because the intended account is unresolved. Do not paste access keys into source, browser configuration or chat. Run `aws sts get-caller-identity` and confirm its account before proceeding. Install AWS SAM CLI and Docker for a Linux-compatible build. Python 3.12 is the deployed runtime. Complete the account-plan and Lambda quota checks in [AWS_FIRST_STEPS.md](../docs/AWS_FIRST_STEPS.md); successful login or visible credits alone do not satisfy them.
 2. Pick one AWS region deliberately. Verify a **regional foundation model** supports Bedrock Converse tool use and is available to this account there. Run an actual small Converse tool-use request before selecting its ID. The template derives the exact permitted foundation-model ARN from the selected ID and stack region, rejects cross-region/inference-profile IDs, and provides no fallback. A model requiring an inference profile needs a separately reviewed region/IAM change.
-3. Choose a dedicated HTTPS origin and the exact callback URL, including a subfolder if used. `FrontendOrigin` has no trailing slash or path. `CallbackUrl` must match the frontend `VITE_COGNITO_REDIRECT_URI` byte for byte. These are public values.
-4. From the repository root, run `sam validate --lint --template-file infra/template.yaml`, `sam build --use-container --template-file infra/template.yaml`, then `sam deploy --guided`. Supply `FrontendOrigin`, `CallbackUrl`, `CognitoDomainPrefix`, `BedrockModelId`, `BudgetEmail` and `MonthlyBudgetUsd`. Review the CloudFormation change set before execution. Do not deploy into an existing unrelated application stack.
-5. Read stack outputs. Set the frontend public API URL, region, Cognito domain/client ID, redirect URI and scopes `openid email profile grantthread/access`; rebuild the frontend before packaging. No client secret exists. Cognito uses code + PKCE. API Gateway requires the custom access-token scope; an ID token cannot satisfy it. Lambda additionally requires a server-managed subject membership and enforces all record scope.
+3. Use the confirmed HTTPS origin `https://timeillusion.com` and exact callback `https://timeillusion.com/grantthread/`. `FrontendOrigin` has no trailing slash or path. `CallbackUrl` must match the frontend `VITE_COGNITO_REDIRECT_URI` byte for byte. These are public values.
+4. Stage approved runtime source with `scripts/stage_sam.py`, then validate/build the returned template using the commands below. After account selection and a successful build, deploy `.aws-sam/build/template.yaml` with `sam deploy --guided --template-file .aws-sam/build/template.yaml`. Supply `FrontendOrigin`, `CallbackUrl`, `CognitoDomainPrefix`, `BedrockModelId`, `BudgetEmail` and `MonthlyBudgetUsd`. Review the CloudFormation change set before execution. Do not deploy into an existing unrelated application stack or use a stale build after a failure.
+5. Read the stack's public outputs and use `scripts/configure_frontend.py --outputs artifacts/stack-outputs.json --site-url https://timeillusion.com/grantthread/` to prepare `artifacts/frontend.env.production`. Review it, copy it into `frontend/.env.production.local`, then rebuild. The helper makes no AWS calls and refuses an existing output unless `--overwrite` is explicit. No client secret exists. Cognito uses code + PKCE with scopes `openid email profile grantthread/access`. API Gateway requires the custom access-token scope; an ID token cannot satisfy it. Lambda additionally requires a server-managed subject membership and enforces all record scope. The complete output-export/build sequence is in [DEPLOYMENT.md](../docs/DEPLOYMENT.md).
 6. Create the three synthetic judge accounts in the Cognito console. Complete their initial password challenge through managed login. Keep passwords in a private credential handoff. Account creation/invitations are deliberate operator actions; the script below sends no emails.
 7. Use the installed project Python environment to seed and bind each **existing** Cognito account:
 
@@ -20,6 +20,24 @@ This template is a prepared deployment artifact. A successful local build does n
 ```
 
 The script authenticates the operator with STS, resolves the user subject from the selected Cognito pool and conditionally writes `MEMBER#<subject>`. Users cannot assign their own role. Existing different memberships require the explicit `--replace-membership` flag. Operator permissions needed are `sts:GetCallerIdentity`, stack-specific `cloudformation:DescribeStacks`, pool-specific `cognito-idp:AdminGetUser`, table-specific `dynamodb:GetItem/PutItem` and bucket-specific `s3:PutObject` when seeding. Grant these separately from the application runtime roles.
+
+From the repository root, run each preparation command only after the preceding one succeeds:
+
+```powershell
+$stage = .\.venv\Scripts\python.exe scripts/stage_sam.py | ConvertFrom-Json
+sam validate --lint --template-file $stage.template
+sam build --use-container --template-file $stage.template
+```
+
+Staging is offline and copies only explicitly approved runtime modules plus locked requirements into `artifacts/sam-source/<content-hash>/`. Local records, uploads, test fixtures and credentials are excluded. The original template deliberately has absent `UNSTAGED` source paths: **never change `CodeUri` back to the working `backend` directory**, where `.data` may contain real records. Restage after code changes. Existing stages are reused only when their contents match their manifest; tampered or incomplete stages fail validation.
+
+After the frontend build, the cloud package command is:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/package_cpanel.py --base /grantthread/ --site-url https://timeillusion.com/grantthread/
+```
+
+It requires complete public cloud settings, the exact callback/base, production metadata and matching asset hashes before creating `artifacts/GrantThread-cpanel.zip`. Use `--preview` explicitly to create the separate `GrantThread-preview.zip` without claiming a connected backend. Both packages contain compiled public assets and licence/deployment notices only. A configured package still needs live verification.
 
 ## Release verification
 

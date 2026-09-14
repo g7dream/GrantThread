@@ -196,7 +196,8 @@ Resources:
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../backend
+      # Guard the working backend/.data. Build the template returned by scripts/stage_sam.py.
+      CodeUri: ../artifacts/sam-source/UNSTAGED
       Handler: grantthread.lambda_handler.handler
       Timeout: 28
       ReservedConcurrentExecutions: 5
@@ -243,7 +244,8 @@ Resources:
   WorkerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../backend
+      # Guard the working backend/.data. Build the template returned by scripts/stage_sam.py.
+      CodeUri: ../artifacts/sam-source/UNSTAGED
       Handler: grantthread.worker.handler
       Timeout: 195
       MemorySize: 768
@@ -311,6 +313,12 @@ Resources:
               Address: !Ref BudgetEmail
 
 Outputs:
+  FrontendOrigin:
+    Description: Public CORS origin used by the API and upload bucket.
+    Value: !Ref FrontendOrigin
+  CallbackUrl:
+    Description: Exact registered public frontend login and logout URL.
+    Value: !Ref CallbackUrl
   ApiUrl:
     Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/api'
   CognitoClientId:

@@ -86,7 +86,9 @@ def dispatch(method, path, body, identity, repository=None, storage=None, raw=No
                 if route[2] == 'update': return finance.update_entry(route[1], body)
                 if route[2] == 'reject': return finance.reject_entry(route[1], body)
                 if route[2] == 'adjust': return finance.adjust_entry(route[1], body)
-                if route[2] == 'confirm': return finance.confirm_entries({'entries': [{'id': route[1], **body}]})['entries'][0]
+                if route[2] == 'confirm':
+                    require('id' not in body or body['id'] == route[1], 'Entry ID must match the requested entry')
+                    return finance.confirm_entries({'entries': [{**body, 'id': route[1]}]})['entries'][0]
             if len(route) == 3 and route[0] == 'imports':
                 if route[2] == 'preview': return finance.preview_import(route[1], body)
                 if route[2] == 'commit': return finance.commit_import(route[1], body)
@@ -97,6 +99,8 @@ def dispatch(method, path, body, identity, repository=None, storage=None, raw=No
     if parts == ["session"] and method == "GET":
         return {"user": identity, "mode": os.getenv("GRANTTHREAD_MODE", "local")}
     if method == "GET":
+        if parts == ["activity"]: return service.activity()
+        if parts == ["activity", "csv"]: return Binary(service.activity_csv(), "text/csv; charset=utf-8", "grantthread-activity.csv")
         if parts == ["portfolio"]: return service.portfolio()
         if parts == ["grants"]: return service.grants()
         if len(parts) == 2 and parts[0] == "grants": return service.grant_detail(parts[1])

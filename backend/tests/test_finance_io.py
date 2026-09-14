@@ -105,6 +105,38 @@ class LedgerImport(unittest.TestCase):
         self.assertEqual((row["amount"], row["rate"], row["currency"], row["date"]), ("123.45", "0.31", "RON", "2026-01-12"))
         self.assertEqual(row["source"], {"sheet": "General Ledger", "row": 5})
 
+    def test_ledger_explicit_direction_signs_credit_without_losing_cash_direction(self):
+        book = openpyxl.Workbook()
+        book.active.append(['Date', 'Description', 'Amount', 'Direction', 'Currency'])
+        book.active.append(['2026-01-12', 'Fictional incoming funds', 50, 'credit', 'RON'])
+        book.active.append(['2026-01-12', 'Fictional supplies', 20, 'debit', 'RON'])
+        raw = io.BytesIO()
+        book.save(raw)
+        rows = parse_ledger_xlsx(raw.getvalue(), {})['rows']
+        self.assertEqual([row['amount'] for row in rows], ['-50.00', '20.00'])
+
+    def test_ledger_explicit_direction_rejects_missing_invalid_and_conflicting_signs(self):
+        for amount, direction in [(50, ''), (50, 'refund'), (-50, 'debit'), (-50, 'credit')]:
+            with self.subTest(amount=amount, direction=direction):
+                book = openpyxl.Workbook()
+                book.active.append(['Date', 'Description', 'Amount', 'Direction', 'Currency'])
+                book.active.append(['2026-01-12', 'Fictional movement', amount, direction, 'RON'])
+                raw = io.BytesIO()
+                book.save(raw)
+                with self.assertRaises(DomainError):
+                    parse_ledger_xlsx(raw.getvalue(), {})
+
+    def test_split_amount_direction_must_agree_with_nonzero_column(self):
+        for debit, credit, direction in [(20, 0, 'credit'), (0, 20, 'debit'), (20, 0, '')]:
+            with self.subTest(debit=debit, credit=credit, direction=direction):
+                book = openpyxl.Workbook()
+                book.active.append(['Date', 'Description', 'Debit', 'Credit', 'Direction', 'Currency'])
+                book.active.append(['2026-01-12', 'Fictional movement', debit, credit, direction, 'RON'])
+                raw = io.BytesIO()
+                book.save(raw)
+                with self.assertRaises(DomainError):
+                    parse_ledger_xlsx(raw.getvalue(), {})
+
     def test_ledger_preserves_high_precision_rates_and_rejects_unsupported_rates(self):
         for value, expected in [(0.321549266958621, "0.321549266958621"),
                                 ("0.321549266958621123", "0.321549266958621123")]:
@@ -366,6 +398,18 @@ class FinancialExports(unittest.TestCase):
         formula = filled["Financial Report"]["J25"].value
         self.assertIsInstance(formula, ArrayFormula)
         self.assertEqual((formula.ref, formula.text), ("J25:J32", "=G25:G32*2"))
+
+    def test_template_cannot_write_inside_preserved_array_formula_range(self):
+        from openpyxl.worksheet.formula import ArrayFormula
+        book = openpyxl.load_workbook(io.BytesIO(workbook(template=True)))
+        book['Financial Report']['J25'] = ArrayFormula(ref='J25:J32', text='=G25:G32*2')
+        source = io.BytesIO()
+        book.save(source)
+        for address in ['J25', 'J26']:
+            with self.subTest(address=address):
+                with self.assertRaises(DomainError) as caught:
+                    fill_report_template(source.getvalue(), self.report(), {'totalCell': address})
+                self.assertEqual(caught.exception.code, 'invalid_mapping')
 
     def test_template_rate_direction_is_explicit_and_inverse_preserves_precision(self):
         source = workbook(template=True)

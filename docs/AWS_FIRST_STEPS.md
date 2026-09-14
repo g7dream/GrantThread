@@ -10,6 +10,10 @@ In Billing and Cost Management, create a monthly cost budget with an email addre
 
 Keep a record of the selected account, region and operator profile locally. Do not put payment or recovery information in this repository.
 
+The current setup has an unresolved account choice: the CLI connection and the earlier GrantThread account were different. Select the intended account and check that account's credit balance before deploying. This guide does not choose an account or upgrade its plan.
+
+Free account plans expose only selected services/features and do not accept additional promotional credits. Their access ends when credits are depleted or the plan expires. Check that the selected plan permits the required Lambda, API Gateway, Cognito, S3, DynamoDB, SQS, CloudWatch, Budgets and Bedrock features; do not assume the signup credit display proves deployment eligibility. [AWS account plans](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html)
+
 ## 2. Connect Windows with temporary credentials
 
 Install the Windows AWS CLI v2 package and reopen PowerShell. Verify `aws --version`. Install AWS SAM CLI for deploying this repository; Linux-compatible builds use Docker with the SAM `--use-container` option. [AWS CLI installation](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [SAM installation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
@@ -28,6 +32,16 @@ For an account using console credentials rather than existing Identity Center, A
 
 Do not enable AWS Organizations just to make an SSO wizard succeed without reviewing the account consequence: AWS currently states that creating an organisation on a free-tier account upgrades it to a paid plan and expires its free-tier credits. An account-only Identity Center instance also does not provide the same AWS account permission assignments as an organisation instance. Use the existing login route or have the owner review that decision. [Identity Center setup](https://docs.aws.amazon.com/singlesignon/latest/userguide/enable-identity-center.html)
 
+Before the first stack deployment, inspect the chosen region's Lambda headroom:
+
+```powershell
+aws lambda get-account-settings --profile grantthread --region YOUR_REGION
+```
+
+The template reserves five concurrent API invocations and two worker invocations. AWS must also retain 100 unreserved units, so a new installation needs `AccountLimit.UnreservedConcurrentExecutions` of at least **107** before allocating these seven reservations. New accounts may have reduced quotas; do not assume the published default applies. If insufficient, resolve the quota with AWS before deploying rather than silently removing the application's concurrency caps. These commands are read-only but still require the intended account selection. [Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html), [reserved concurrency](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html)
+
+The template currently leaves `UserPoolTier` unspecified, so a newly created Cognito pool uses AWS's **Essentials** default. Include that plan in the cost review; do not assume the older Lite defaults. [Cognito feature plans](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-sign-in-feature-plans.html)
+
 ## 3. Choose and verify one EU model region
 
 Start by inspecting the account's Bedrock catalogue in one EU region, for example `eu-west-1` or `eu-central-1`. These are candidate regions, not a claim that any particular model is available there. Select a model only after confirming in-region availability, Converse tool-use support, account access and pricing. Record its exact regional model ID. The SAM template derives the matching foundation-model ARN from that ID and the deployment region/partition. It does not accept an inference-profile ARN or a geographic/global model prefix as a substitute.
@@ -44,8 +58,12 @@ aws bedrock list-foundation-models --profile grantthread --region eu-west-1 --qu
 
 Replace the candidate region with the one actually chosen. Catalogue listing does not prove inference permissions or tool use. Complete one small genuine tool-use request through the configured GrantThread agent, inspect its job events and record the result. Review account/provider terms before the first chargeable invocation.
 
+A successful playground response through an EU/global inference profile does not satisfy the current regional-only worker contract. Validate the exact regional model ID intended for the template with a small Converse tool-use request first, then verify a real GrantThread job after deployment. Keep account permissions, model selection and actual execution evidence separate.
+
 ## 4. Hand off only non-secret configuration
 
 The deployment needs the established operator profile name, selected region and verified model ID; the frontend's actual owned HTTPS domain and `/grantthread/` URL; and an operational budget email. The model ARN is derived automatically. Passwords and credentials stay in the AWS login flow or private account storage.
 
-Next use [DEPLOYMENT.md](DEPLOYMENT.md). Once a real account identity is connected, routine stack configuration can proceed against the prepared files without asking the owner to make implementation choices. Account terms, billing identity and initial login remain owner actions.
+Next use [DEPLOYMENT.md](DEPLOYMENT.md). Once the chosen account is verified and its quota, access and model prerequisites are satisfied, routine stack configuration can proceed against the prepared files without asking the owner to make implementation choices. Account selection, terms, billing identity and initial login remain owner actions.
+
+Local preparation can continue while the account decision is paused. Run `scripts/stage_sam.py` and build only the template path it returns; the original template's absent `UNSTAGED` paths prevent accidental packaging of private `backend/.data`. After deployment, `scripts/configure_frontend.py` prepares a reviewable public environment file from saved stack outputs. Cloud cPanel packaging requires complete settings and verified build hashes; `--preview` deliberately produces a separate interface-only ZIP. The commands and required order are in [DEPLOYMENT.md](DEPLOYMENT.md).

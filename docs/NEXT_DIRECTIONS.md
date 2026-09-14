@@ -1,0 +1,15 @@
+# Useful next directions
+
+The 14 September improvement pass focused on financial correctness, traceable review, recoverable local testing and reliable release preparation. These are prerequisites for useful real-world testing; the remaining order is below.
+
+| Order | Direction | Why it helps | Concrete completion evidence |
+| --- | --- | --- | --- |
+| 1 | Finish one hosted workflow | A cPanel interface alone cannot save records or authenticate users. | Confirm the intended AWS account, verify service quotas and one regional Bedrock model, deploy the existing staged stack, then sign in at timeillusion.com/grantthread/, create a fictional draft, refresh it, run one genuine agent job and verify tenant isolation. Account selection is paused. |
+| 2 | Complete grant setup for newly created grants | Financial imports work with a grant currency, but each funder also has reporting requirements and a template policy. | A reviewer can enter and explicitly confirm required documents, period, categories and the chosen FX basis; an incomplete grant stays visibly unready. No agreement text silently becomes a rule. Start with manual setup before AI suggestions. |
+| 3 | Broaden bank import coverage | Current deterministic parsing supports one narrow text layout; AI supports at most 60 candidate rows and has no live-run proof yet. | Add anonymised/fictional fixtures for the next actual bank layout, debit/credit/balance checks and failed-row recovery. Verify a genuine extraction against every source page before claiming broader coverage. Add OCR only after text workflows and costs are established. |
+| 4 | Make financial report handoff easier | Templates and mappings are currently saved per grant/import. Reusing a reviewed funder profile would reduce repeated setup. | Allow an explicit copy of a reviewed profile to another grant, recheck its categories/currency/FX basis, and add bounded worksheet navigation beyond the initial 12 preview rows. Preserve unmapped cells and require renewed review when the template changes. Never infer funder acceptance from a successful XLSX export. |
+| 5 | Test with a grant administrator | Code execution timings are not evidence of saved administrative time. | Run a short equivalent fictional task manually and in GrantThread, including corrections and checking. Record elapsed time, errors, confusing labels and unresolved items. Use those observations to prioritise the next product changes. |
+
+Do not add automatic market-rate conversion as a substitute for receipt provenance: the user asked to enter the rate at which funds were received. Keep the exact entered direction/rate alongside the normalised conversion. Receipt selection currently does not consume a cash balance or implement FIFO; a future consumption policy needs an explicit funder/accounting requirement.
+
+Continue using separate fictional local workspaces and [private recovery archives](LOCAL_RECOVERY.md) while hosted setup is paused. The public preview ZIP can show the interface and setup status, but local UI tests and offline provider fixtures do not prove AWS, Cognito, SQS or Bedrock operation.

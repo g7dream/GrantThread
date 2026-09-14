@@ -16,6 +16,17 @@ Use the committed frontend lockfile with `npm ci`. Do not substitute unpinned de
 
 ## Start the application
 
+The combined launcher is the recommended route, especially when cloud settings have previously been configured:
+
+```powershell
+.\scripts\start-local.ps1 -CheckOnly
+.\scripts\start-local.ps1 -DataDirectory .\artifacts\my-test-workspace -Offline -OpenBrowser
+```
+
+It starts both servers, forces the frontend to the local API, clears cloud sign-in configuration for that development run and disables Bedrock with `-Offline`. It preserves the normal `backend/.data` workspace when a different data directory is supplied. Ctrl+C stops the processes it launched. The data directory resolves against PowerShell's current location. [LOCAL_RECOVERY.md](LOCAL_RECOVERY.md) covers backups and restoring into a new workspace.
+
+For separate terminals, ensure no inherited cloud/Vite values redirect the interface away from the local API:
+
 In terminal one, from the repository root:
 
 ```powershell
@@ -38,6 +49,8 @@ Use [MANUAL_SCENARIOS.md](MANUAL_SCENARIOS.md) for the principal workflow and `f
 First complete [AWS_FIRST_STEPS.md](AWS_FIRST_STEPS.md), verify a tool-capable regional model in the account and set the current terminal's `AWS_PROFILE`, `AWS_DEFAULT_REGION` and `BEDROCK_MODEL_ID`. Keep `GRANTTHREAD_MODE` local; setting it to `aws` selects cloud storage and requires the deployed resources.
 
 Restart the local backend with those values and trigger an evidence job. Record its actual outcome and tool events. A successful local Bedrock invocation still does not verify the deployed Cognito/API/SQS path.
+
+When using the combined launcher for this deliberate model test, omit `-Offline`; the launcher still forces local storage and the local frontend. AWS account selection is currently paused, so use offline mode for the current test pass.
 
 ## Reset and build
 

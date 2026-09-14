@@ -1,6 +1,28 @@
 # Evaluation record
 
-Status on **6 September 2026: local workflow verified; deployed AWS/model gates pending**. The results below describe the current local working tree. A frozen public repository revision is not available in this record. Browser observations were recorded by the implementation session; automated benchmark details are in [BENCHMARK_RESULTS.json](BENCHMARK_RESULTS.json).
+Status on **14 September 2026: local improvements verified; deployed AWS/model gates pending**. AWS account selection is paused. No cloud API calls, deployment, credential changes or publication were performed during this local improvement pass. The known destination is `https://timeillusion.com/grantthread/`; its existing interface still lacks the configured backend.
+
+## 14 September local reliability pass
+
+- **158 backend tests passed**, including activity/CSV, transport limits, legacy credit recovery, correction fencing, Windows-safe recovery and repeat-seed source preservation. **8 frontend request-lifecycle tests passed**, covering stalled headers/JSON/error/download bodies, cleanup, HTML endpoints and no automatic financial-write retries. **26 release/staging tests passed**, including deterministic packages, source allowlists, changed assets, credential markers, competing destinations and failed-write cleanup.
+- TypeScript/Vite production build, Python compilation and `pip check` passed. Source and staged SAM templates passed `cfn-lint`. SAM's Linux-container dependency build and actual deployment were not run.
+- Three isolated service journeys passed again: EUR 5,200 total, the 1,700 / 3,100 / 400 split, two report formats and a resolved clarification. [BENCHMARK_RESULTS.json](BENCHMARK_RESULTS.json) retains the unmeasured human-review/manual baseline fields.
+- Current public assets are packaged separately as `artifacts/GrantThread-preview.zip` with a SHA-256 sidecar. Incomplete cloud settings and changed assets fail validation. SAM staging includes only 18 approved runtime modules, requirements and template metadata, excluding local data and uploads.
+- The generated SAM stage was read and syntax-checked under the user's Windows account after fixing inherited directory permissions. This confirms local readability, not a Linux dependency build.
+
+Browser tests used separate fictional workspaces under `artifacts/`; the normal `backend/.data` was not reset. A EUR 100 draft was selected, filtered out and restored to view unselected. Confirmation recorded the actor and target. Filtering history to one action still downloaded all three events in chronological order.
+
+A RON 500 receipt entered as `1 EUR = 5 RON` showed EUR 100, the normalised rate and exact entered rate/direction. Currency/direction changes cleared the old receipt rate. Changing an imported draft from RON to USD cleared its manual rate. A comma separator required a fresh preview while numeric source cells retained their values. Downloading an original with unsaved description edits kept the editor open at version 1; cancel/reopen restored the unchanged saved description. Downloaded XLSX bytes matched the source SHA-256. A cleared optional template total cell stayed empty after save/reopen. A template missing the report's Uncategorised category was correctly rejected.
+
+Recovery copied two fictional organisations and 20 referenced objects into a new directory. Previous sessions failed; fresh login retained the expense, receipt and four events. The restored server ran under the user's Windows account after fixing temporary-directory ACL inheritance. Deliberately invalid inherited cloud frontend settings still produced local identities/API. Ctrl+C released the launcher's ports. Relative data paths resolved correctly after PowerShell changed directories. Startup now leaves existing source files untouched; cloud recovery remains untested.
+
+At 390 × 844, the financial page measured 375px wide. Mobile navigation excluded background controls; after fixing the `inert` timing, Escape restored the Open navigation button's focus. The activity and receipt layouts were visually inspected. Native screen-reader use remains untested.
+
+An extracted preview served locally at `/grantthread/` without an API showed **Website preview / Setup is not finished**, unavailable uploads and optional owner diagnostics. This proves the static failure state, not Apache rewrites, cPanel upload, Cognito or Bedrock.
+
+## 6 September baseline
+
+The observations below describe the original local implementation and financial feature pass. Earlier counts/artifact names are historical; use the 14 September record and current artifact manifest for this candidate.
 
 ## Executed checks
 
@@ -52,7 +74,7 @@ All backend tests, Python compilation, dependency consistency and the production
 | G4: containment | Local controlled tests for instructions, invented sources, financial claims, stale runs and timeout passed | Genuine configured model run with recorded source/tool results and failure behavior |
 | G5: judge journey | Local browser journey and report exports passed; desktop/narrow navigation checked | Hosted fresh-session journey, actual screen-reader check where claimed, final public video |
 
-Local passes do not establish production security, broad accessibility conformance, provider behavior or regulatory compliance. The public repository has not been published: GitHub authentication is not established. The owned hosting destination, AWS configuration and final genuine demonstration remain external gates.
+Local passes do not establish production security, broad accessibility conformance, provider behavior or regulatory compliance. The public repository has not been published in this pass. AWS account/configuration, hosted authenticated behavior and a genuine model demonstration remain external gates; the owned hosting destination is now known.
 
 ## Exact money and source fixtures
 

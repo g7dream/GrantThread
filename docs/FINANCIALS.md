@@ -17,7 +17,7 @@ The same file, purpose and grant are recognised on repeated upload instead of cr
 
 ### Ledger workbooks and formulas
 
-The XLSX importer recognises common headers and supports explicit mappings for dates, descriptions, references, amounts or debit/credit columns, currencies, categories and exchange rates. Negative ledger amounts become positive cash-movement drafts requiring classification. A workbook's entered rate becomes an explicit manual conversion rate, not a market quote.
+The XLSX importer recognises common headers and supports explicit mappings for dates, descriptions, references, signed amounts, positive amounts with a debit/credit Direction column, separate debit/credit columns, currencies, categories and exchange rates. Credits become positive cash-movement drafts requiring classification; their original credit direction remains protected through edits and confirmation. Conflicting amount signs/directions or ambiguous debit/credit values block those rows. Choose the decimal separator for the source workbook. A workbook's entered rate becomes an explicit manual conversion rate, not a market quote.
 
 The server never calculates spreadsheet formulas. A mapped transaction formula must already have a cached result. If it is missing, recalculate and save in Excel before importing again. Cached values can also be stale, so verify the saved source. Macros, external workbook links and embedded objects are unsupported. Exported user text is written as literal cell text rather than a spreadsheet formula.
 
@@ -46,6 +46,8 @@ A unique bank reference, amount, currency and grant match can suggest a payment-
 Confirmed entries cannot be edited or rejected. Create a linked adjustment draft for a correction. The original and every confirmed adjustment remain in history. Corrections cannot reduce the original expense's cumulative source amount below zero.
 
 Adjustments use cumulative rounding: convert the corrected total source amount at the original rate, then subtract the original reporting amount and previously confirmed adjustments. This prevents small corrections from accumulating independent rounding errors. A complete reversal returns the cumulative reporting amount to zero.
+
+Confirm corrections to the same original expense one at a time. Confirming one changes the versions of other pending corrections to that expense, so refresh and review their recalculated differences before continuing. A batch containing two corrections to the same original is rejected atomically. The corrected cumulative source amount must remain within the supported money bounds.
 
 ## Receipts and exchange-rate direction
 
@@ -77,9 +79,9 @@ Choose inclusive start/end dates and category budgets in the grant's reporting c
 
 The standard export includes **Financial Report**, **Ledger** and **Funding Receipts** sheets with original/reporting amounts, rate details and source/history references. It is a private download, not an automatic funder submission.
 
-For a funder template, upload its XLSX and review the mapping. Map category actuals, optionally a total, period start/end and a rate cell. The mapping must cover every report category, use distinct valid output cells and avoid merged-cell interiors. Exports change only mapped values; other cells and formulas are retained through the workbook library. This does not guarantee support for every Excel feature or arbitrary layout.
+For a funder template, upload its XLSX and review the mapping. Map category actuals, optionally a total, period start/end and a rate cell. The mapping must cover every report category, use distinct valid output cells and avoid merged-cell interiors and every cell covered by an array formula. Exports change only mapped values; other cells and formulas are retained through the workbook library. This does not guarantee support for every Excel feature or arbitrary layout.
 
-A mapped rate cell requires one distinct foreign conversion rate in the report. If there are several rates or no foreign rate, leave it unmapped and use the ledger's conversion detail. Preserved formulas are not calculated by the server: open the exported workbook in Excel, recalculate and verify it before use. Explicitly mapping a cell can replace its previous formula.
+A mapped rate cell requires exactly one foreign currency pair and one conversion rate in the report. Identical numeric rates for different currencies do not represent one shared conversion basis. If there are several pairs/rates or no foreign rate, leave it unmapped and use the ledger's conversion detail. Preserved formulas are not calculated by the server: open the exported workbook in Excel, recalculate and verify it before use. Explicitly mapping a cell can replace its previous ordinary formula.
 
 Period start/end cells can also be mapped. Match the template rate direction explicitly: reporting currency per source unit is the default; the reciprocal is used only when selected. Only mapped cells change; other headings, balances and carry-forward figures still need review. The generated ledger identifies each selected funding receipt so its conversion can be traced to the receipt sheet.
 
@@ -97,5 +99,7 @@ Period start/end cells can also be mapped. Match the template rate direction exp
 | Agent scheduling | Up to 30 created runs per actor per UTC day; active runs are reused or blocked as described above. |
 
 Original bytes and extracted PDF pages belong in private storage, not aggregate response bodies. Financial originals, receipts, entries and XLSX exports are restricted to the owning grantee; receiving a report snapshot does not grant funders access. Public fixtures contain fictional data only. Local runtime data and generated artifacts remain excluded from repository releases and frontend packages.
+
+The cloud transport returns a clear `export_too_large` error for generated binary downloads larger than 4 MiB, before base64 encoding exceeds the Lambda response ceiling. Reduce the workbook size or reporting period when possible. Original-source downloads use separate authorised S3 links in cloud mode. Local backup and restore instructions are in [LOCAL_RECOVERY.md](LOCAL_RECOVERY.md).
 
 Implementation is in `finance_io.py`, `finance_math.py`, `finance_service.py` and `bank_agent.py` under `backend/grantthread/`. Current test counts belong in [EVALUATION.md](EVALUATION.md), not claims of live AWS/model validation. See also [permissions](PERMISSIONS.md), [architecture](ARCHITECTURE.md) and [model disclosure](MODEL_DISCLOSURE.md).

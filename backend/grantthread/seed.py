@@ -2,6 +2,7 @@
 import hashlib
 import json
 
+from .errors import DomainError
 from .repository import get_repository
 from .storage import get_storage
 
@@ -93,8 +94,31 @@ def make_seed(storage=None):
 
 
 def seed_all(repository=None, storage=None, overwrite=False):
-    repository, storage = repository or get_repository(), storage or get_storage()
-    for org_id, data in make_seed(storage).items():
+    repository = repository or get_repository()
+    sources = {}
+    class SeedSources:
+        def put(self, key, raw, content_type):
+            sources[key] = (raw, content_type)
+    # Fixture generation must not write over source files belonging to retained records.
+    seeds = make_seed(SeedSources())
+    pending = {}
+    for org_id, data in seeds.items():
+        if not overwrite:
+            try:
+                repository.read(org_id)
+            except DomainError as exc:
+                if exc.code != 'not_found' or exc.status != 404:
+                    raise
+            else:
+                continue
+        pending[org_id] = data
+    if not pending:
+        return
+    storage = storage or get_storage()
+    for org_id, data in pending.items():
+        for key, (raw, content_type) in sources.items():
+            if key.startswith(org_id + '/'):
+                storage.put(key, raw, content_type)
         repository.put_initial(org_id, data, overwrite=overwrite)
 
 

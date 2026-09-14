@@ -3,6 +3,7 @@ import type { Expense, Grant, Job } from './types'
 export type Receipt = {
   id: string; grantId: string; receivedDate: string; sourceCurrency: string; reportCurrency: string
   sourceAmountMinor: number; rate: string; rateDirection: 'report_per_source'; reportAmountMinor: number; note: string; useAsDefault?: boolean
+  enteredRate?: string | number; enteredDirection?: 'report_per_source' | 'source_per_report'
 }
 export type FinanceKind = 'expense' | 'refund' | 'transfer' | 'income' | 'adjustment' | 'payment_match' | 'unclassified'
 export type ConversionMode = 'receipt' | 'weighted_average' | 'manual' | 'same_currency'
@@ -17,6 +18,7 @@ export type FinanceEntry = {
 export type FinanceImport = {
   id: string; version: number; name: string; kind: 'ledger' | 'bank' | 'template'; status: string; grantId: string
   sourceCurrency?: string; defaultCurrency?: string; defaultSheet?: string; dateFormat?: 'dmy' | 'mdy' | 'ymd'; suggestedDateFormat?: 'dmy' | 'mdy' | 'ymd'
+  decimalSeparator?: '.' | ',' | null
   sheets: { name: string; rowCount: number; previewRows: unknown[][] }[]
   sheet?: string; headerRow?: number; mapping?: Record<string, string | number>; rows: Record<string, unknown>[]
   templateMapping?: { sheet: string; categoryColumn: string; actualColumn: string; startRow: number; endRow: number; totalCell?: string; rateCell?: string; periodStartCell?: string; periodEndCell?: string; rateDirection?: 'report_per_source' | 'source_per_report' }

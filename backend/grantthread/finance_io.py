@@ -264,14 +264,19 @@ def _transaction(values, columns, options, source, epoch=None, bank=False):
     if "amount" in columns:
         amount = _number(read("amount"), "Amount", decimal_separator=separator)
         direction = str(read("direction") or "").strip().lower()
-        if bank:
-            require(direction in {"debit", "credit"}, "Bank amount rows need an explicit debit/credit direction", "mapping_required", 422)
-            require(amount >= 0, "Bank amount must be positive; use direction for debit/credit", "invalid_financial_value", 422)
+        if bank or 'direction' in columns:
+            require(direction in {"debit", "credit"}, "Mapped direction must be debit or credit for every amount row", "mapping_required", 422)
+            require(amount >= 0, "Amounts with a debit/credit direction must be positive; unmap direction to use signed amounts", "invalid_financial_value", 422)
+            if not bank and direction == 'credit':
+                amount = -amount
     else:
         debit = _number(read("debit") or 0, "Debit", decimal_separator=separator)
         credit = _number(read("credit") or 0, "Credit", decimal_separator=separator)
         require(debit >= 0 and credit >= 0 and not (debit and credit), "A transaction cannot contain both debit and credit amounts", "invalid_financial_value", 422)
         amount, direction = debit - credit, "debit" if debit else "credit"
+        if 'direction' in columns:
+            require(str(read('direction') or '').strip().lower() == direction,
+                    'Mapped direction does not match the debit/credit amount columns', 'invalid_financial_value', 422)
         if bank:
             amount = abs(amount)
     require(amount != 0, "A transaction amount cannot be zero", "invalid_financial_value", 422)
@@ -359,6 +364,7 @@ def parse_ledger_xlsx(raw, options):
             warnings.insert(0, f"Skipped {skipped} balance, total, summary or non-transaction rows.")
         return {"sheet": sheet_name, "headerRow": header_row, "mapping": {k: get_column_letter(v + 1) for k, v in columns.items()},
                 "dateFormat": actual_options["dateFormat"], "defaultCurrency": actual_options.get("defaultCurrency", ""),
+                "decimalSeparator": actual_options.get("decimalSeparator"),
                 "rows": rows, "warnings": warnings}
     finally:
         formulas.close()
@@ -633,6 +639,7 @@ def export_financial_xlsx(report, entries, receipts):
 def fill_report_template(raw, report, mapping=None):
     from openpyxl.cell.cell import MergedCell
     from openpyxl.utils import column_index_from_string
+    from openpyxl.worksheet.cell_range import CellRange
     book = _xlsx(raw, read_only=False)
     mapping = mapping or {}
     require(isinstance(mapping, dict) and isinstance(report, dict), "Template mapping and report must be objects")
@@ -696,11 +703,14 @@ def fill_report_template(raw, report, mapping=None):
         if mapping.get("periodEndCell"):
             writes.append((mapping["periodEndCell"], _day(report.get("periodEnd"))))
         coordinates = []
+        array_ranges = [CellRange(address) for address in sheet.array_formulae.values()]
         for address, value in writes:
             require(isinstance(address, str) and re.fullmatch(r"[A-Za-z]{1,2}[1-9]\d{0,3}", address), "Map an individual cell address", "invalid_mapping", 422)
             cell = sheet[address.upper()]
             require(cell.row <= MAX_ROWS and cell.column <= MAX_COLUMNS and not isinstance(cell, MergedCell), "Mapped cell is outside supported bounds or inside a merged range", "invalid_mapping", 422)
             require(cell.coordinate not in coordinates, "Mapped output cells must not overlap", "invalid_mapping", 422)
+            require(not any(cell.coordinate in area for area in array_ranges),
+                    "Mapped output overlaps an array formula. Choose an output cell outside that formula range.", "invalid_mapping", 422)
             coordinates.append(cell.coordinate)
             _safe_cell(cell, value)  # Only explicitly mapped cells may replace formulas.
         output = io.BytesIO()

@@ -9,6 +9,9 @@ from .auth import gateway_identity
 from .errors import DomainError, require
 from .repository import get_repository
 
+# Base64 and the integration envelope must fit Lambda's synchronous response limit.
+MAX_INLINE_BINARY_BYTES = 4 * 1024 * 1024
+
 
 def handler(event, context):
     try:
@@ -21,7 +24,7 @@ def handler(event, context):
         repository = get_repository()
         identity = gateway_identity(event, repository)
         raw = event.get("body") or ""
-        raw = base64.b64decode(raw) if event.get("isBase64Encoded") else raw.encode()
+        raw = base64.b64decode(raw, validate=True) if event.get("isBase64Encoded") else raw.encode()
         require(len(raw) <= 5 * 1024 * 1024, "Request exceeds 5 MB", "too_large", 413)
         body = json.loads(raw) if raw else {}
         require(isinstance(body, dict), "JSON body must be an object")
@@ -29,6 +32,9 @@ def handler(event, context):
         if isinstance(result, Redirect):
             return {"statusCode": 302, "headers": {"Location": result.location, "Cache-Control": "no-store"}, "body": ""}
         if isinstance(result, Binary):
+            require(len(result.data) <= MAX_INLINE_BINARY_BYTES,
+                    'This export is too large to download through the hosted API. Use a smaller template or reporting period.',
+                    'export_too_large', 413)
             name = result.name.replace('"', "").replace("\r", "").replace("\n", "").encode("ascii", "ignore").decode()
             return {"statusCode": 200, "isBase64Encoded": True, "headers": {"Content-Type": result.content_type,
                     "Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},

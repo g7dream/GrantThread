@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import PurePath
 
 from .errors import DomainError, require
-from .finance_math import CATEGORIES, CURRENCIES, amount_text, conversion, convert_minor, currency, iso_date, normalize_rate, parse_amount
+from .finance_math import CATEGORIES, CURRENCIES, MAX_AMOUNT_MINOR, amount_text, conversion, convert_minor, currency, iso_date, normalize_rate, parse_amount
 from .service import Service, clean_text, new_id, now
 
 ENTRY_KINDS = {'expense', 'refund', 'transfer', 'income', 'adjustment', 'payment_match', 'unclassified'}
@@ -127,6 +127,8 @@ class FinancialService(Service):
         require(value['kind'] == 'adjustment' or value['sourceAmountMinor'] > 0, 'Enter a positive amount and choose the cash movement type')
         value.setdefault('conversionMode', 'same_currency' if value['currency'] == grant['currency'] else 'receipt')
         require(isinstance(value['conversionMode'], str) and value['conversionMode'] in {'same_currency', 'receipt', 'weighted_average', 'manual'}, 'Choose a conversion method')
+        for field in ('receiptId', 'matchExpenseId'):
+            require(value.get(field) is None or isinstance(value[field], str), 'Choose a valid receipt or matching expense identifier')
         if value.get('manualRate'):
             value['manualRate'] = normalize_rate(value['manualRate'])
         if value.get('adjustsEntryId'):
@@ -154,6 +156,8 @@ class FinancialService(Service):
             previous = [e for e in data.get('financeEntries', {}).values()
                         if e['status'] == 'confirmed' and e.get('adjustsEntryId') == original['id']]
             corrected_native = original['sourceAmountMinor'] + sum(e['sourceAmountMinor'] for e in previous) + entry['sourceAmountMinor']
+            require(corrected_native >= 0, 'The corrections would reduce this expense below zero')
+            require(corrected_native <= MAX_AMOUNT_MINOR, 'The corrected source amount exceeds the supported limit')
             corrected_report = convert_minor(corrected_native, original['fxRate'])
             delta = corrected_report - original['reportAmountMinor'] - sum(e['reportAmountMinor'] for e in previous)
             return {**conversion(data, entry), 'reportAmountMinor': delta, 'roundingBasis': 'cumulative_original_rate',
@@ -176,6 +180,7 @@ class FinancialService(Service):
             value.update(id=key, version=1, status='draft', createdAt=now(), history=[])
             entries[key] = value
             data['factVersion'] += 1
+            self.audit(data, 'financial_draft_created', key)
             return self.project_entry(data, value)
         return self.repository.mutate(self.org_id, commit)
 
@@ -193,10 +198,37 @@ class FinancialService(Service):
             value['version'] += 1
             data['financeEntries'][key] = value
             data['factVersion'] += 1
+            self.audit(data, 'financial_draft_edited', key)
             return self.project_entry(data, value)
         return self.repository.mutate(self.org_id, commit)
 
-    def confirm_one(self, data, entry):
+    def source_direction(self, data, entry, legacy_rows):
+        direction = entry.get('sourceDirection') or entry.get('bankDirection')
+        if direction:
+            return direction
+        source = entry.get('source', {})
+        if not source.get('importId'):
+            return None
+        item = import_in(data, source['importId'])
+        rows = item.get('rows', [])
+        if item['kind'] == 'ledger' and item.get('mapping', {}).get('direction'):
+            # Older ledgers discarded an explicitly mapped direction in their cached rows.
+            # Recover it from the immutable workbook, never from editable draft amounts.
+            if item['id'] not in legacy_rows:
+                from .finance_io import parse_ledger_xlsx
+                raw = self.storage.get(item['objectKey'])
+                require(hashlib.sha256(raw).hexdigest() == item['sha256'],
+                        'The original financial source changed. Restore the original file before confirming this draft.', 'source_unavailable', 409)
+                legacy_rows[item['id']] = parse_ledger_xlsx(raw, item)['rows']
+            rows = legacy_rows[item['id']]
+        coordinates = {key: value for key, value in source.items() if key != 'importId'}
+        matches = [row for row in rows if row.get('source') == coordinates]
+        require(coordinates and len(matches) == 1,
+                'The original movement cannot be identified. Review its source before confirming this draft.', 'source_unavailable', 409)
+        original = matches[0]
+        return 'credit' if original.get('direction') == 'credit' or parse_amount(original['amount'], signed=True) < 0 else 'debit'
+
+    def confirm_one(self, data, entry, legacy_rows=None):
         require(entry['status'] == 'draft', 'Entry has already been handled', 'already_handled', 409)
         require(entry['kind'] != 'unclassified', 'Classify this bank movement before confirming')
         grant = grant_in(data, entry['grantId'])
@@ -213,7 +245,11 @@ class FinancialService(Service):
         if kind in {'expense', 'adjustment'}:
             require(entry['category'] != 'Uncategorised', 'Choose a reporting category before confirming an expense')
         if kind == 'expense':
-            require(entry.get('bankDirection') != 'credit', 'Incoming bank credits cannot be reported as expenses. Classify the receipt or create a linked correction.')
+            direction = self.source_direction(data, entry, legacy_rows if legacy_rows is not None else {})
+            require(direction != 'credit',
+                    'Incoming credits cannot be reported as expenses. Classify the receipt or create a linked correction.')
+            if direction:
+                entry['sourceDirection'] = direction
             # Same reference/date/amount/currency is a duplicate, even from a different uploaded file.
             duplicate = next((e for e in data['expenses'].values() if e['currency'] == entry['currency'] and e['amountMinor'] == entry['sourceAmountMinor']
                               and ((e.get('reference') and e.get('reference') == entry['reference'] and (bank_source or e['date'] == entry['date']))
@@ -237,14 +273,14 @@ class FinancialService(Service):
                     'A payment match must come from a bank statement')
             require(entry.get('bankDirection') == 'debit', 'Only a bank debit can pay an expense')
             expense.update(paymentEntryId=entry['id'], paidStatus='matched_bank_payment', paymentDate=entry['date'])
-        elif kind == 'adjustment':
-            original = entry_in(data, entry.get('adjustsEntryId'))
-            total_adjustments = sum(e['sourceAmountMinor'] for e in data.get('financeEntries', {}).values()
-                                    if e['status'] == 'confirmed' and e.get('adjustsEntryId') == original['id'])
-            require(original['sourceAmountMinor'] + total_adjustments + entry['sourceAmountMinor'] >= 0,
-                    'The corrections would reduce this expense below zero')
         entry.update(status='confirmed', version=entry['version'] + 1, confirmedAt=now(), confirmedBy=self.identity['id'],
                      conversion=snapshot, reportAmountMinor=snapshot['reportAmountMinor'], reportCurrency=grant['currency'], fxRate=snapshot['rate'])
+        if kind == 'adjustment':
+            # Their cumulative rounding basis has changed, even when the entered rate has not.
+            # An older screen must review the new amount before approving another correction.
+            for draft in data.get('financeEntries', {}).values():
+                if draft['status'] == 'draft' and draft.get('adjustsEntryId') == entry['adjustsEntryId']:
+                    draft['version'] += 1
         entry.setdefault('history', []).append({'action': 'confirmed', 'at': now(), 'actorId': self.identity['id']})
         self.audit(data, 'financial_' + kind + '_confirmed', entry['id'])
 
@@ -258,8 +294,12 @@ class FinancialService(Service):
             selected = [entry_in(data, item['id']) for item in items]
             for entry, item in zip(selected, items):
                 expected(entry, item)
+            adjusted_ids = [entry['adjustsEntryId'] for entry in selected if entry.get('adjustsEntryId')]
+            require(len(set(adjusted_ids)) == len(adjusted_ids),
+                    'Confirm one correction per original expense at a time, then refresh to review the remaining corrections.', 'conflict', 409)
+            legacy_rows = {}
             for entry in selected:
-                self.confirm_one(data, entry)
+                self.confirm_one(data, entry, legacy_rows)
             data['factVersion'] += 1
             return {'confirmed': len(selected), 'entries': selected}
         return self.repository.mutate(self.org_id, commit)
@@ -273,6 +313,7 @@ class FinancialService(Service):
             entry.update(status='rejected', version=entry['version'] + 1)
             data['factVersion'] += 1
             entry.setdefault('history', []).append({'action': 'rejected', 'actorId': self.identity['id'], 'at': now()})
+            self.audit(data, 'financial_draft_rejected', key)
             return entry
         return self.repository.mutate(self.org_id, commit)
 
@@ -289,6 +330,7 @@ class FinancialService(Service):
             adjustment = self.normalize_entry(data, {'amount': body.get('amount')}, adjustment)
             data.setdefault('financeEntries', {})[adjustment['id']] = adjustment
             data['factVersion'] += 1
+            self.audit(data, 'financial_correction_created', adjustment['id'])
             return self.project_entry(data, adjustment)
         return self.repository.mutate(self.org_id, commit)
 
@@ -321,7 +363,7 @@ class FinancialService(Service):
             item.update(overview)
             item['contentType'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             if kind == 'ledger':
-                options = {**overview, **{k: body[k] for k in ('sheet', 'headerRow', 'mapping', 'defaultCurrency', 'dateFormat') if k in body}}
+                options = {**overview, **{k: body[k] for k in ('sheet', 'headerRow', 'mapping', 'defaultCurrency', 'dateFormat', 'decimalSeparator') if k in body}}
                 options['sheet'] = body.get('sheet') or overview.get('defaultSheet')
                 try:
                     item.update(parse_ledger_xlsx(raw, options))
@@ -398,7 +440,9 @@ class FinancialService(Service):
                 value = self.normalize_entry(data, entry)
                 entry_id = new_id('entry')
                 value.update(id=entry_id, version=1, status='draft', createdAt=now(), history=[],
-                             source={'importId': key, **row.get('source', {})}, bankDirection=row.get('direction'))
+                             source={'importId': key, **row.get('source', {})},
+                             sourceDirection='credit' if is_credit else 'debit',
+                             bankDirection=row.get('direction') if item['kind'] == 'bank' else None)
                 if item['kind'] == 'bank' and not is_credit:
                     matches = [e for e in data['expenses'].values() if e['currency'] == value['currency'] and e['amountMinor'] == abs(native)
                                and value['reference'] and e.get('reference') == value['reference']
@@ -493,14 +537,14 @@ class FinancialService(Service):
         receipts = [r for r in data.get('fundingReceipts', {}).values() if r['grantId'] == grant_id and start <= r['receivedDate'] <= end]
         from .domain import unresolved_financial_imports
         imports = [i for i in data.get('financeImports', {}).values() if i['grantId'] == grant_id and i['kind'] != 'template']
-        rates = {e.get('fxRate') for e in entries if e['currency'] != grant['currency'] and e.get('fxRate')}
+        rates = {(e['currency'], e['fxRate']) for e in entries if e['currency'] != grant['currency'] and e.get('fxRate')}
         return {'grant': grant, 'periodStart': start, 'periodEnd': end, 'rows': sorted(rows.values(), key=lambda r: r['category']),
                 'entries': sorted(entries, key=lambda e: e['date']), 'totalMinor': sum(r['actualMinor'] for r in rows.values()),
                 'currency': grant['currency'], 'unresolvedCount': sum(e['status'] == 'draft' and e['grantId'] == grant_id and start <= e['date'] <= end
                     for e in data.get('financeEntries', {}).values()), 'receiptsTotalMinor': sum(r['reportAmountMinor'] for r in receipts),
                 'unresolvedImportCount': len(unresolved_financial_imports(data, grant_id)),
                 'sourceWarnings': [i['name'] + ': ' + warning for i in imports for warning in i.get('warnings', [])],
-                'rate': next(iter(rates)) if len(rates) == 1 else None,
+                'rate': next(iter(rates))[1] if len(rates) == 1 else None,
                 'version': data['factVersion'], 'synthetic': grant.get('synthetic') is not False and not imports
                     and not any(e['grantId'] == grant_id for e in data.get('financeEntries', {}).values())}
 

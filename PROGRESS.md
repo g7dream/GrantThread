@@ -2,6 +2,8 @@
 
 Local P0 candidate implemented on **6 September 2026** from [the supplied plan](docs/BUILD_PLAN.md). Integrated in dependency order, with independent frontend, infrastructure and documentation work in parallel. Cloud gates remain separate from local completion.
 
+**14 September update:** the owned site is `https://timeillusion.com/grantthread/`. AWS account selection is paused after the temporary CLI login differed from the earlier account screenshot. This local improvement pass makes no AWS calls, deployment or publication. See [useful next directions](docs/NEXT_DIRECTIONS.md).
+
 | ID | Task | Status | Evidence / remaining gate |
 | --- | --- | --- | --- |
 | D1.1 | Workspace, architecture and synthetic fixture | Local complete | Empty repository inspected; structure, licence, fixture and decisions recorded. AWS account/domain still need configuration. |
@@ -26,10 +28,15 @@ Local P0 candidate implemented on **6 September 2026** from [the supplied plan](
 | F4 | International grant receipt conversion | Complete locally | Automatic latest eligible receipt opt-in, explicit/inverse rates, weighted/manual alternatives, stale-draft fencing, frozen conversions and currency-separated totals. |
 | F5 | Editable financials and adjustments | Complete locally | Draft/batch confirmation, immutable originals, linked corrections with cumulative rounding, period reports and budgets. Browser RON100 to CAD25, correction to CAD20 verified. |
 | F6 | Excel exports and verification | Complete locally | 116 backend tests pass; production build and dependency checks pass. Browser Excel import/download, automatic FX, corrections, template mapping, keyboard and responsive checks completed. |
+| H1 | Reliable financial review | Complete locally | Explicit XLSX credit direction, legacy-source recovery, bounded cumulative corrections, same-original correction fencing, one-pair template rate and array-formula protection. Filters clear hidden selections; edited currency pairs clear manual rates. |
+| H2 | Readable activity history | Complete locally | Grantee-only recent history and entire-history CSV, recorded actor names, financial draft/create/edit/confirm events, export formula escaping. Browser filtered CSV retained all events. |
+| H3 | Private local recovery | Complete locally | Checksummed record/source backups; verified restore into a new directory, no sessions or incomplete uploads; isolated launcher with explicit offline mode. See recovery guide and evaluation. |
+| H4 | Reproducible deployment preparation | Complete offline; cloud gate open | Hash-verified production assets, explicit preview vs configured cloud packaging, saved stack-output conversion, allowlisted SAM runtime staging that excludes local data. |
+| H5 | Failure states and keyboard use | Complete locally | Unconfigured website shows setup steps; read requests and download bodies time out; no automatic financial-write retry. Menu closes restore focus after removing inert; non-submit actions do not save forms. |
 
 ## Verified artifacts
 
-- artifacts/GrantThread-cpanel.zip: public compiled assets for lowercase /grantthread/, licences, .htaccess, parent case-redirect example and deployment notes. **Supply AWS public configuration and rebuild before live use.**
+- artifacts/GrantThread-preview.zip: current public compiled interface for lowercase /grantthread/, licences, .htaccess and deployment notes. **It deliberately has no functioning cloud login or uploads.** A configured cloud ZIP is generated only after actual stack settings pass validation.
 - artifacts/GrantThread-source.zip: committed source candidate for the authorised public repository, without local data, credentials or installed dependencies.
 - artifacts/digital-belonging-sample.pdf, artifacts/community-makers-sample.pdf and matching manifests.
 - docs/BENCHMARK_RESULTS.json: three local synthetic service journeys; no human baseline, timing or product-saving claims.
@@ -37,10 +44,10 @@ Local P0 candidate implemented on **6 September 2026** from [the supplied plan](
 
 ## Next concrete tasks: external setup
 
-1. **AWS:** identify/sign in to the intended account, configure a short-lived operator profile, choose one EU region and verify a regional tool-capable model. Follow [AWS first steps](docs/AWS_FIRST_STEPS.md). No AWS CLI/profile/model access is currently available here.
-2. **Domain:** identify the actual domain managed in Spaceship. The provider's spaceship.com address is not the deployment domain. Use a dedicated /grantthread/ folder, back up the destination and install the parent redirect for mixed-case paths.
+1. **AWS:** confirm the intended account when the owner resumes setup, then verify the temporary profile, one EU region, required service quotas and a regional tool-capable model. The AWS CLI is installed; the previous successful login did not match the earlier GrantThread screenshot. Do not deploy using that ambiguity. Follow [AWS first steps](docs/AWS_FIRST_STEPS.md).
+2. **Domain:** use `https://timeillusion.com/grantthread/`. The existing uploaded interface lacks its backend. After cloud configuration, upload only into that dedicated folder and verify the parent redirect for mixed-case paths.
 3. **GitHub:** sign in under g7dream. Public publication is authorised, but Git Credential Manager has no usable sign-in. scripts/github_repository.py inspects access; --create creates the authorised public repository after sign-in. Do not paste tokens into chat or source.
 4. Deploy SAM, bind synthetic Cognito users, inject public frontend configuration, rebuild/upload the ZIP, then run G1 and deployed scope/journey checks.
 5. Record the genuine demonstration, verify judge access, review the concrete submission package, and publish only specifically authorised outputs. Video/posts/competition entry are not yet published.
 
-No input is needed for routine code/packaging choices. Account sign-in and the actual domain are the current external dependencies.
+No input is needed for routine local code/packaging choices. Intended AWS account selection and actual cloud access are the next external dependencies. Earlier rows retain their historical test counts; current verification totals belong in [EVALUATION.md](docs/EVALUATION.md).

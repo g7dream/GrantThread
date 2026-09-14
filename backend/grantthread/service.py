@@ -1,5 +1,6 @@
 """Application operations; authority is supplied by the server, never by tool arguments."""
 import copy
+import csv
 import hashlib
 import io
 import json
@@ -49,7 +50,30 @@ class Service:
         return self.repository.read(self.org_id)
 
     def audit(self, data, action, target):
-        data["audit"].append({"actorId": self.identity["id"], "action": action, "targetId": target, "at": now()})
+        data["audit"].append({"actorId": self.identity["id"], "actorName": self.identity.get("name", ""),
+                              "action": action, "targetId": target, "at": now()})
+
+    def activity(self, limit=200):
+        """Expose recorded workspace changes, without claiming a complete access log."""
+        rows = self.data().get('audit', [])
+        start = max(0, len(rows) - limit)
+        events = [{'sequence': index + 1, **{key: value for key, value in row.items()
+                   if key in {'action', 'targetId', 'actorId', 'actorName', 'at'}}}
+                  for index, row in enumerate(rows[start:], start)]
+        return {'events': list(reversed(events)), 'total': len(rows), 'truncated': start > 0, 'limit': limit}
+
+    def activity_csv(self):
+        rows = self.data().get('audit', [])
+        output = io.StringIO(newline='')
+        writer = csv.writer(output)
+        writer.writerow(['Sequence', 'Date (UTC)', 'Action', 'Record ID', 'Actor ID', 'Recorded actor name'])
+        def text(value):
+            value = str(value or '')
+            # CSV readers must treat user-supplied names/identifiers as text, never spreadsheet formulas.
+            return "'" + value if value.lstrip().startswith(('=', '+', '-', '@')) or value.startswith(('\t', '\r', '\n')) else value
+        for index, row in enumerate(rows, 1):
+            writer.writerow([index, *(text(row.get(key)) for key in ('at', 'action', 'targetId', 'actorId', 'actorName'))])
+        return output.getvalue().encode('utf-8-sig')
 
     def grant(self, data, grant_id):
         require(grant_id in data["grants"], "Grant not found", "not_found", 404)

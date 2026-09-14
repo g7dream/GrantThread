@@ -37,7 +37,7 @@ npm.cmd --prefix frontend run dev
 
 Open [the local application](http://127.0.0.1:5173/). Choose Bright Path Lab, Harbour Collective or Northstar Foundation. Anyone with access to this local demo can select any demo account; use fictional data only. Local identities establish opaque server sessions, and a client-side role flag is never permission. The API binds to loopback and rejects unrelated hosts/origins. Local demo login and reset are absent from the cloud API.
 
-After dependencies are installed, `scripts/start-local.ps1` starts the local API and interface together. The `.env.example` file documents configuration keys; export backend variables in the terminal. Vite reads `frontend/.env.local`. Full instructions are in [local setup](docs/SETUP.md).
+After dependencies are installed, `scripts/start-local.ps1` starts the local API and interface together. Use `-DataDirectory .\artifacts\my-test-workspace -Offline` for a separate fictional workspace with no Bedrock calls. [Local recovery](docs/LOCAL_RECOVERY.md) documents private backups and verified restore into a new directory. The `.env.example` file documents configuration keys; export backend variables in the terminal. Vite reads `frontend/.env.local`. Full instructions are in [local setup](docs/SETUP.md).
 
 ## Demonstration workflow
 
@@ -61,10 +61,14 @@ Supported currencies are EUR, RON, CAD, USD, GBP, CHF, AUD and NZD, all with two
 
 Choose the reporting period and category budgets, then export a financial workbook or populate explicitly mapped cells in a funder's XLSX template. Unrecognised bank layouts require an actual configured Bedrock model; no transactions are invented when it is unavailable. See [Financials: workflow, calculations and limits](docs/FINANCIALS.md).
 
+**Activity history** shows the latest recorded organisation actions, their actors, times and record references. Filter the view or export the entire recorded history to CSV. It is private to the grantee and complements each record's source and version history; it does not claim to log every action.
+
 ## Verification
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s backend/tests -v
+.\.venv\Scripts\python.exe -m unittest discover -s scripts/tests -v
+npm.cmd --prefix frontend test
 npm.cmd --prefix frontend run build
 .\.venv\Scripts\python.exe scripts/benchmark_local.py
 ```
@@ -73,19 +77,26 @@ The targeted checks cover money, currency, concurrent/stale actions, tenant scop
 
 ## AWS and cPanel
 
-Begin with [AWS first steps](docs/AWS_FIRST_STEPS.md), then [infrastructure setup](infra/README.md) and [deployment instructions](docs/DEPLOYMENT.md). The frontend is intended for a domain you control under lowercase `/grantthread/`; `spaceship.com` is the hosting provider's domain. No unrelated website should be overwritten.
+The confirmed destination is [timeillusion.com/grantthread/](https://timeillusion.com/grantthread/). Account selection is paused; no AWS deployment is verified. Follow [the site setup record](docs/TIMEILLUSION_SETUP.md), [AWS first steps](docs/AWS_FIRST_STEPS.md), [infrastructure setup](infra/README.md) and [deployment instructions](docs/DEPLOYMENT.md). Keep uploads inside the dedicated lowercase `/grantthread/` folder.
 
 AWS SAM defines Cognito code+PKCE login, JWT-authorised API Gateway, Python Lambda, private S3, DynamoDB and SQS. A configured **regional** Bedrock model is mandatory; no silent cross-region fallback exists. Server-managed membership determines authority. Only a user-authorised deterministic endpoint changes canonical allocations or publishes a snapshot. The seven model tools cannot publish, pay, email, execute SQL or access a shell.
 
-After setting the public AWS/Cognito frontend values:
+AWS builds must use the private-data-excluding runtime stage:
+
+```powershell
+$stage = .\.venv\Scripts\python.exe scripts/stage_sam.py | ConvertFrom-Json
+sam build --use-container --template-file $stage.template
+```
+
+After saving actual stack outputs, `scripts/configure_frontend.py --outputs FILE --site-url https://timeillusion.com/grantthread/` produces reviewed public environment settings. Install those settings as described in the deployment guide, then:
 
 ```powershell
 $env:VITE_BASE_PATH = '/grantthread/'
 npm.cmd --prefix frontend run build
-.\.venv\Scripts\python.exe scripts/package_cpanel.py --base /grantthread/
+.\.venv\Scripts\python.exe scripts/package_cpanel.py --site-url https://timeillusion.com/grantthread/
 ```
 
-The ZIP is written to `artifacts/GrantThread-cpanel.zip` and contains compiled public assets, an `.htaccess` and deployment notes. The included parent-directory rewrite example handles mixed-case `/GrantThread` requests. Its actual hosting behavior must be verified on your domain. A ZIP built without AWS public configuration is a preview package, not a functioning cloud deployment.
+Cloud packaging refuses incomplete settings and assets that no longer match their build manifest. The cloud ZIP is written to `artifacts/GrantThread-cpanel.zip`; it contains compiled public assets, an `.htaccess` and deployment notes. To deliberately package the interface before AWS setup, use `--preview --site-url https://timeillusion.com/grantthread/`, producing `artifacts/GrantThread-preview.zip`. That preview shows setup is unfinished and does not provide cloud login. The parent-directory rewrite example handles mixed-case `/GrantThread` requests; verify it on the actual host. Packaging is not live deployment verification.
 
 ## Project layout
 
