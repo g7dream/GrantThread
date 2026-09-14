@@ -1,5 +1,15 @@
 # Deployment to Spaceship cPanel and AWS
 
+## Public editable demo update — 14 September
+
+The new runtime/template update reached `UPDATE_COMPLETE` with `PublicDemoSignup=true`. Cognito self-signup is enabled (`AllowAdminCreateUserOnly=false`), `GET /api/health` returns `publicDemoSignup=true`, and exact-origin CORS permits the bounded `x-grantthread-demo-role` header. The matching cPanel package was extracted; all 16 identity/gzip/Brotli and canonical cache checks pass. The actual browser loads `index-C8T0tDcQ.js`. Its 18 recorded checks pass for native signup-page navigation, OAuth, personal-copy creation, editing/sharing, both roles, selected-source download, the resolved conversation and Restore with retained login/history after reload. Separate administrative Lambda checks pass 55 isolation and restoration cases. Test accounts were confirmed administratively; real signup email delivery and code confirmation remain unverified. See [EVALUATION.md](EVALUATION.md) for transport limits and the latest budget-stopped/throttled AI runs.
+
+`PublicDemoSignup` jointly controls native signup and automatic personal-demo access. Its default is `false`; the current demo explicitly selects `true`. A confirmed account without an invited membership can create only its own fictional Bright Path copy and Northstar view. Existing memberships retain their assigned roles. Turning the flag off disables this automatic access without deleting stored copies. The frontend exposes no Google sign-in because Google federation is not configured; Gmail can be used as an ordinary email address with a GrantThread password. See [PUBLIC_DEMO.md](PUBLIC_DEMO.md) for the exact UPDATE command, restore limits and acceptance checks.
+
+The earlier invited-account release evidence below remains valid for its recorded scope. It does not verify a newly registered account or its restore operation.
+
+## Earlier invited-account release
+
 The confirmed frontend destination is **`https://timeillusion.com/grantthread/`**, an isolated folder hosted through Spaceship cPanel. Actual Cognito sign-in, normal reload, grantee financial display and XLSX download/readback pass. Final raw/gzip/Brotli hashes match the built files, and the canonical browser loads the current bundle after the cache repair. Hosted sharing with one selected attachment, funder sign-in and a source-linked question/answer also pass. Hosted receipt-PDF values, the selected original download and funder acknowledgement are verified. Repeated judge demonstrations remain open. Preserve the existing Time Illusion website and use only its dedicated `grantthread` folder.
 
 The application `grantthread-demo` in `eu-north-1` and budget `grantthread-demo-budget` in `us-east-1` reached CREATE_COMPLETE. A genuine regional Nova Lite Strands reconciliation and 49 cloud backend checks passed through administrative Lambda invocation with trusted gateway claims; public-browser proof is recorded separately and now includes the grantee sign-in/reload and XLSX download. Selected sharing, verified original-download bytes and the resolved hosted clarification pass. These bounded checks do not establish universal cross-role or JWT security coverage. The owner selected `CapacityMode=shared-demo` under the current quota of 10. Use UPDATE change sets for these existing stacks, after inspecting their state. [EVALUATION.md](EVALUATION.md) records exact proof and current blockers.
@@ -51,7 +61,7 @@ To prepare the selected CloudFormation deployment:
 
 1. Upload the exact `$release.zip` into an authorised **private deployment bucket in `eu-north-1`**, with public access blocked and encryption enabled. Use an immutable content-addressed object key such as `lambda/<full ZIP SHA-256>/function.zip`. Verify the uploaded checksum; if that key already exists, verify identical content and reuse it without overwriting.
 2. Make an ignored generated copy of `$release.sourceTemplate`, such as `artifacts/application-cloud.yaml`. Replace **both** `ApiFunction.Properties.CodeUri` and `WorkerFunction.Properties.CodeUri` with that exact `s3://BUCKET/KEY`. Assert that both point to the same verified ZIP and that no local `./backend` or `UNSTAGED` code URI remains. Preserve every other template property and the `Transform: AWS::Serverless-2016-10-31` declaration.
-3. Check the generated template with `cfn-lint --template artifacts/application-cloud.yaml --regions eu-north-1`. Store only the five application parameters listed below in a separate ignored JSON parameter file; the budget recipient does not belong in this file.
+3. Check the generated template with `cfn-lint --template artifacts/application-cloud.yaml --regions eu-north-1`. Store only the six application parameters listed below in a separate ignored JSON parameter file; the budget recipient does not belong in this file.
 4. Create a change set against the dedicated `grantthread-demo` stack. CloudFormation performs the [server-side SAM transform](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/transform-aws-serverless.html); no local SAM-translated template is claimed by the wheel builder.
 
 For a new application stack, replace the file/name placeholders and use the established operator profile:
@@ -93,9 +103,12 @@ Review its change set before execution as well. This alternative requires SAM CL
 | `CallbackUrl` | `https://timeillusion.com/grantthread/` |
 | `CognitoDomainPrefix` | Available lowercase login domain prefix |
 | `BedrockModelId` | Tool-capable model actually verified in the chosen region |
+| `PublicDemoSignup` | `false` by default; current public editable demo explicitly uses `true` |
 | `CapacityMode` | `shared-demo` for the current small judging demo; default `reserved` otherwise |
 
 `shared-demo` omits both Lambda reservations; it never sets them to zero. API Gateway uses best-effort throttle targets of five requests/second and burst five, and the SQS mapping retains `MaximumConcurrency=2`. The current account-wide concurrency quota of 10 bounds all concurrent functions in that region. It supplies no per-function guarantee: API traffic, workers and other functions share the pool, so API starvation or queued work is possible under load. Use this only for a small judging demo, and recheck capacity, cost exposure and isolation before changing the account quota or adding other workloads.
+
+Public signup adds actors who can invoke the application. Daily agent limits are per actor, and the USD 25 alert budget is not a global spending cap. Restore preserves agent history and cannot reset that allowance. Review admission, retention and account-wide cost controls before treating this judging demo as a production service.
 
 The default `reserved` mode preserves API concurrency five, worker concurrency two, and API throttle targets of ten requests/second and burst twenty. It requires at least 107 unreserved units before a fresh deployment allocates those reservations. The stack's `CapacityMode` output records the selected policy. The separate budget stack, authentication, scoped IAM, daily job limits and worker deadlines apply in both modes.
 

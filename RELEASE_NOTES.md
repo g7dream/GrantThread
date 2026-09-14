@@ -1,6 +1,16 @@
-# 14 September 2026 — cloud verification candidate
+# 14 September 2026 — public editable demo update
 
-The regional `grantthread-demo` stack and separate USD 25 budget stack reached CREATE_COMPLETE. The current local suites passed **244 tests** (169 backend, 50 scripts, 25 frontend API), plus the production frontend build. **49 cloud application checks** passed using administrative Lambda invocation with trusted gateway claims, not public JWT/OAuth/CORS/browser testing.
+Implemented public email/password signup, explicit personal-demo creation, grantee/funder role switching and version-checked Restore. Each new visitor receives a private fictional Bright Path copy with three grants and its Northstar view. Existing invited memberships retain their original scope. Restore rejects active jobs and stale versions, replaces scenario IDs, preserves sign-in and agent allowance history, and leaves other visitors unchanged. It is not permanent S3 deletion. Google federation is not configured; Gmail can be used as an ordinary email address.
+
+**280 local tests pass** (190 backend, 52 scripts, 38 frontend API/auth), plus the production build. AWS reached `UPDATE_COMPLETE`; signup, health and role-header CORS settings are verified. All 16 hosted encoding/cache checks pass and the browser loads `index-C8T0tDcQ.js`. The new flow passes **18 actual browser checks**, including OAuth, copy creation, venue correction, report sharing, selected-source download, both roles, a resolved conversation and Restore with login/history retained after reload. **55 separate administrative cloud checks** pass for isolation and restoration boundaries. Accounts were confirmed administratively; real signup email delivery and code confirmation remain unverified. See [PUBLIC_DEMO.md](docs/PUBLIC_DEMO.md).
+
+The browser-triggered review stopped at its budget after eight recorded tools: six succeeded and two already-confirmed evidence proposals were safely rejected; it created no report or proposal. A separate cloud review failed under model throttling after four successful tools. These are bounded outcomes, not successful automatic report completion. Exact counter semantics and earlier distinct runs are in [EVALUATION.md](docs/EVALUATION.md).
+
+The earlier 244-test release and 49 administrative cloud checks below describe the invited-account workflow before this update. They do not establish the new signup or per-visitor restoration behavior.
+
+# 14 September 2026 — earlier invited-account release
+
+The regional `grantthread-demo` stack and separate USD 25 budget stack reached CREATE_COMPLETE. Those local suites passed **244 tests** (169 backend, 50 scripts, 25 frontend API), plus the production frontend build. **49 cloud application checks** passed using administrative Lambda invocation with trusted gateway claims, not public JWT/OAuth/CORS/browser testing.
 
 A genuine regional Nova Lite Strands reconciliation made four model calls and eight successful tool calls in 8.59 seconds, saved an incomplete report and correctly reached `waiting_input` for missing printing proof and human allocation review. Real Lambda/S3 financial checks covered XLSX/text-bank-PDF imports, receipt conversion, payment matching, CAD 25→20 correction and XLSX/PDF exports. Genuine model-based bank extraction is not verified.
 
